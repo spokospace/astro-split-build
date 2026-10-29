@@ -4,7 +4,7 @@
 // memory or open-file limits. Building each target separately (the build reads
 // which one from its env, e.g. BUILD_LOCALE) keeps each run small. The price
 // is a merge step that must not lose files, and a check that the merged pages
-// still point at bundles that exist. Targets build strictly one after another:
+// still point at bundles and pages that exist. Targets build strictly one after another:
 // running them in parallel brings back the very limits this avoids.
 
 import { execSync } from 'child_process';
@@ -15,11 +15,13 @@ import { createInfo, normalizeOptions } from './config.js';
 import { cpTreeWithRetry, rmTree, sleepSyncMs } from './fs-safe.js';
 import { mergeTargets } from './merge.js';
 import { formatMissingRefs, verifyAssetRefs } from './verify-assets.js';
+import { formatLinkReport, hasLinkProblems, verifyInternalLinks } from './verify-links.js';
 import { toPosixPath } from './walk.js';
 
 export { SplitBuildError } from './errors.js';
 export { mergeTargets } from './merge.js';
 export { formatMissingRefs, verifyAssetRefs } from './verify-assets.js';
+export { extractLinks, formatLinkReport, hasLinkProblems, verifyInternalLinks } from './verify-links.js';
 export { cpTreeWithRetry, rmTree } from './fs-safe.js';
 export { walkDist } from './walk.js';
 
@@ -50,6 +52,7 @@ export { walkDist } from './walk.js';
  * @property {string} [tempDir] default ".build-temp"
  * @property {string[]} [sharedDirs] content-hashed dirs merged from every target
  * @property {false | { dir: string }} [verifyAssets]
+ * @property {false | { site: string, redirects?: Map<string, string> | (() => Map<string, string>) }} [verifyLinks]
  * @property {{ before?: Function, afterTarget?: Function, afterMerge?: Function }} [hooks]
  * @property {boolean} [strict] a missing non-root subdir fails instead of warning
  * @property {boolean} [quiet]
@@ -196,6 +199,33 @@ export async function splitBuild(options) {
       });
     }
     logger.log(`✅ Asset references: ${refCount} reference(s) across ${pageCount} page(s) all resolve.`);
+  }
+
+  // Every target links into the others (language switcher, hreflang), so
+  // only the merged output can tell whether a link resolves.
+  if (o.verifyLinks) {
+    info('\n🔍 Verifying internal links...');
+    // A function is read only now: the redirect map may be generated into
+    // the build output.
+    const { redirects } = o.verifyLinks;
+    const result = verifyInternalLinks({
+      outDir: o.outDir,
+      site: o.verifyLinks.site,
+      assetsDir: o.verifyAssets ? o.verifyAssets.dir : undefined,
+      redirects: typeof redirects === 'function' ? redirects() : redirects,
+    });
+    if (hasLinkProblems(result)) {
+      logger.error(
+        `${formatLinkReport(result)}\n\n` +
+          `These links 404 on the built site. Fix the code that generates the link or the route.`
+      );
+      throw new SplitBuildError('BROKEN_INTERNAL_LINKS', `internal links in ${outLabel}/ do not resolve`, {
+        missing: result.missing,
+        nonReciprocal: result.nonReciprocal,
+        conflicting: result.conflicting,
+      });
+    }
+    logger.log(`✅ Internal links: ${result.linkCount} link(s) across ${result.pageCount} page(s) all resolve.`);
   }
 
   await runHook('afterMerge', [context]);

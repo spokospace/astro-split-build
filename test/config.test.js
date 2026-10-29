@@ -20,6 +20,7 @@ test('accepts a minimal config and fills defaults', () => {
   assert.match(o.tempDir, /\.build-temp$/);
   assert.deepEqual(o.sharedDirs, []);
   assert.equal(o.verifyAssets, false);
+  assert.equal(o.verifyLinks, false);
   assert.deepEqual(o.env({ name: 'en' }), {});
   assert.equal(o.settleMs, 500);
 });
@@ -64,10 +65,13 @@ test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
 });
 
-test('validates command, env, sharedDirs, verifyAssets and hooks', () => {
+test('validates command, env, sharedDirs, verifyAssets, verifyLinks and hooks', () => {
   rejects({ command: '' }, /command/);
   rejects({ env: null }, /env/);
   rejects({ sharedDirs: ['../x'] }, /sharedDirs/);
   rejects({ verifyAssets: { dir: '' } }, /verifyAssets/);
+  rejects({ verifyLinks: { site: 'catalog.polo.blue' } }, /verifyLinks/);
+  assert.deepEqual(normalizeOptions({ ...valid, verifyLinks: { site: 'https://x.dev' } }).verifyLinks, { site: 'https://x.dev', redirects: undefined });
+  rejects({ verifyLinks: { site: 'https://x.dev', redirects: {} } }, /verifyLinks/);
   rejects({ hooks: { before: 'nope' } }, /hooks\.before/);
 });

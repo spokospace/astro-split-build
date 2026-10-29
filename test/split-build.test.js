@@ -81,6 +81,31 @@ test('without the shared dir merge, the PL chunk is caught as a broken reference
   assert.equal(existsSync(join(dir, '.build-temp', 'pl')), true);
 });
 
+test('links between targets are checked on the merged output', async (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  const { logger, lines } = recordingLogger();
+  // The PL page links DE's page, which only exists once the targets are merged.
+  const links = { pl: '/de/', de: '/pl/' };
+  const env = (target) => ({ FAKE_SUBDIR: target.subdir ?? '', FAKE_CHUNK: chunks[target.name], FAKE_LINK: links[target.name] ?? '' });
+  await splitBuild(config(dir, { logger, env, verifyLinks: { site: 'https://example.com' } }));
+  assert.match(lines.log.at(-1), /Internal links: 2 link\(s\) across 3 page\(s\) all resolve\./);
+});
+
+test('a link to a page no target built is BROKEN_INTERNAL_LINKS', async (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  const { logger, lines } = recordingLogger();
+  const env = (target) => ({ FAKE_SUBDIR: target.subdir ?? '', FAKE_CHUNK: chunks[target.name], FAKE_LINK: target.name === 'pl' ? '/fr/' : '' });
+  await assert.rejects(splitBuild(config(dir, { logger, env, verifyLinks: { site: 'https://example.com' } })), (err) => {
+    assert.equal(err.code, 'BROKEN_INTERNAL_LINKS');
+    assert.deepEqual([...err.missing.keys()], ['/fr/']);
+    return true;
+  });
+  assert.match(lines.error[0], /✗ \/fr\/\n {6}linked from \/pl\//);
+  assert.equal(existsSync(join(dir, '.build-temp', 'pl')), true);
+});
+
 test('a failing build stops the run with BUILD_FAILED and keeps earlier targets', async (t) => {
   const { dir, cleanup } = tempProject();
   t.after(cleanup);

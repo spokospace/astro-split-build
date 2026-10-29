@@ -107,6 +107,17 @@ export function normalizeOptions(options) {
     verifyAssets = { dir: toPosixPath(verifyAssets.dir) };
   }
 
+  let verifyLinks = options.verifyLinks ?? false;
+  if (verifyLinks !== false) {
+    const { site, redirects } = verifyLinks ?? {};
+    const siteOk = URL.canParse(site) && /^https?:$/.test(new URL(site).protocol);
+    const redirectsOk = redirects === undefined || redirects instanceof Map || typeof redirects === 'function';
+    if (!siteOk || !redirectsOk) {
+      throw invalid('verifyLinks must be false or { site: "https://…", redirects?: Map | (() => Map) }');
+    }
+    verifyLinks = { site, redirects };
+  }
+
   const hooks = options.hooks ?? {};
   for (const name of ['before', 'afterTarget', 'afterMerge']) {
     if (hooks[name] !== undefined && typeof hooks[name] !== 'function') {
@@ -124,6 +135,7 @@ export function normalizeOptions(options) {
     tempDir,
     sharedDirs,
     verifyAssets,
+    verifyLinks,
     hooks,
     strict: options.strict === true,
     quiet: options.quiet === true,
