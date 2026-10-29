@@ -11,60 +11,48 @@
 // A 404 on a hashed bundle is never acceptable, so callers treat a non-empty
 // `missing` as a hard failure.
 
-import { existsSync, readFileSync } from 'fs';
-import { join, relative } from 'path';
-import { SplitBuildError } from './errors.js';
-import { toPosixPath, walkDist } from './walk.js';
-
-const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+import { scanPages } from './scan-pages.js';
+import { escapeRegExp } from './text.js';
 
 /**
- * @param {{ outDir: string, dir: string }} options `dir` is the assets
- *   directory relative to `outDir` (Astro's `build.assets`, `_astro` by default).
- * @returns {{ refCount: number, pageCount: number, missing: Map<string, string> }}
- *   `missing` maps each unresolved reference to the first page (as a URL path)
- *   that pointed at it.
+ * The asset reference check as a page check for `scanPages`.
+ * @param {{ dir: string }} options `dir` is the assets directory relative to
+ *   outDir (Astro's `build.assets`, `_astro` by default).
+ * @returns {import('./scan-pages.js').PageCheck} finishing with
+ *   `{ refCount, pageCount, missing: Map<string, string> }`; `missing` maps each
+ *   unresolved reference to the first page (as a URL path) that pointed at it.
  */
-export function verifyAssetRefs({ outDir, dir }) {
-  if (!existsSync(outDir)) {
-    throw new SplitBuildError('OUT_DIR_MISSING', `${outDir} not found — run a build first.`, { outDir });
-  }
-
+export const assetRefsCheck = ({ dir }) => ({ files, pages }) => {
   // src/href values pointing into the assets directory, with or without a
   // leading slash, ignoring any ?query the runtime appends (Astro retries a
   // failed island import as `...js?astro-retry=1`).
   const refPattern = new RegExp(`/${escapeRegExp(dir)}/[A-Za-z0-9._-]+\\.[A-Za-z0-9]+`, 'g');
 
-  const htmlFiles = walkDist(outDir, (entry) =>
-    entry.isDirectory() ? 'recurse' : entry.name.endsWith('.html') && 'collect'
-  );
-
   // One asset is referenced by hundreds of pages; remember the first page that
   // pointed at each missing file so the report names a page to reproduce with,
   // without repeating the same broken bundle hundreds of times.
   const missing = new Map();
-  // The same few hundred bundles are referenced from every page: stat each
-  // distinct reference once, not once per page.
-  const resolved = new Set();
   let refCount = 0;
 
-  for (const file of htmlFiles) {
-    const html = readFileSync(file, 'utf8');
-    for (const match of html.matchAll(refPattern)) {
-      refCount++;
-      const ref = match[0];
-      if (resolved.has(ref) || missing.has(ref)) continue;
-      if (existsSync(join(outDir, ref))) {
-        resolved.add(ref);
-        continue;
+  return {
+    page(file, html) {
+      for (const [ref] of html.matchAll(refPattern)) {
+        refCount++;
+        if (!files.has(ref.slice(1)) && !missing.has(ref)) missing.set(ref, file);
       }
-      // Report the page as a URL path, so a Windows run doesn't print
-      // "/pl\kalkulator-felg-i-opon\index.html".
-      missing.set(ref, toPosixPath(relative(outDir, file)));
-    }
-  }
+    },
+    finish: () => ({ refCount, pageCount: pages.length, missing }),
+  };
+};
 
-  return { refCount, pageCount: htmlFiles.length, missing };
+/**
+ * Check the asset references of every page of `outDir` on their own; see
+ * `assetRefsCheck` for the result.
+ * @param {{ outDir: string, dir: string }} options
+ */
+export function verifyAssetRefs({ outDir, dir }) {
+  const [result] = scanPages({ outDir, checks: [assetRefsCheck({ dir })] });
+  return result;
 }
 
 /** The report lines for a non-empty `missing` map, one entry per asset. */

@@ -106,6 +106,43 @@ test('a link to a page no target built is BROKEN_INTERNAL_LINKS', async (t) => {
   assert.equal(existsSync(join(dir, '.build-temp', 'pl')), true);
 });
 
+// A page check that fails on every page whose content includes `needle`.
+const forbids = (needle) => () => {
+  const problems = [];
+  let pages = 0;
+  return {
+    page: (file, html) => {
+      pages++;
+      if (html.includes(needle)) problems.push(`${file} contains ${needle}`);
+    },
+    finish: () => ({ problems, summary: `${pages} page(s) clean` }),
+  };
+};
+
+test('page checks run on the merged output, in the same pass as the built-in checks', async (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  const { logger, lines } = recordingLogger();
+  await splitBuild(config(dir, { logger, pageChecks: [{ name: 'no FR', check: forbids('/fr/') }] }));
+  assert.equal(lines.log.filter((line) => /Asset references/.test(line)).length, 1);
+  assert.equal(lines.log.at(-1), '✅ no FR: 3 page(s) clean');
+});
+
+test('a failing page check is PAGE_CHECK_FAILED naming the check and its problems', async (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  const { logger, lines } = recordingLogger();
+  const env = (target) => ({ FAKE_SUBDIR: target.subdir ?? '', FAKE_CHUNK: chunks[target.name], FAKE_LINK: target.name === 'pl' ? '/fr/' : '' });
+  await assert.rejects(splitBuild(config(dir, { logger, env, pageChecks: [{ name: 'no FR', check: forbids('/fr/') }] })), (err) => {
+    assert.equal(err.code, 'PAGE_CHECK_FAILED');
+    assert.equal(err.check, 'no FR');
+    assert.deepEqual(err.problems, ['pl/index.html contains /fr/']);
+    return true;
+  });
+  assert.equal(lines.error[0], 'no FR:\n  pl/index.html contains /fr/');
+  assert.equal(existsSync(join(dir, '.build-temp', 'pl')), true);
+});
+
 test('a failing build stops the run with BUILD_FAILED and keeps earlier targets', async (t) => {
   const { dir, cleanup } = tempProject();
   t.after(cleanup);

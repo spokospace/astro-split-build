@@ -21,6 +21,7 @@ test('accepts a minimal config and fills defaults', () => {
   assert.deepEqual(o.sharedDirs, []);
   assert.equal(o.verifyAssets, false);
   assert.equal(o.verifyLinks, false);
+  assert.deepEqual(o.pageChecks, []);
   assert.deepEqual(o.env({ name: 'en' }), {});
   assert.equal(o.settleMs, 500);
 });
@@ -65,7 +66,10 @@ test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
 });
 
-test('validates command, env, sharedDirs, verifyAssets, verifyLinks and hooks', () => {
+test('validates command, env, sharedDirs, verifyAssets, verifyLinks, pageChecks and hooks', () => {
+  rejects({ pageChecks: {} }, /pageChecks/);
+  rejects({ pageChecks: [{ name: '', check: () => ({}) }] }, /pageChecks/);
+  rejects({ pageChecks: [{ name: 'x', check: 'nope' }] }, /pageChecks/);
   rejects({ command: '' }, /command/);
   rejects({ env: null }, /env/);
   rejects({ sharedDirs: ['../x'] }, /sharedDirs/);

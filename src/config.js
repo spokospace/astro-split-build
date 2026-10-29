@@ -118,6 +118,12 @@ export function normalizeOptions(options) {
     verifyLinks = { site, redirects };
   }
 
+  const pageChecks = options.pageChecks ?? [];
+  const pageCheckOk = (entry) => typeof entry?.name === 'string' && entry.name !== '' && typeof entry.check === 'function';
+  if (!Array.isArray(pageChecks) || !pageChecks.every(pageCheckOk)) {
+    throw invalid('pageChecks must be an array of { name: "…", check: (context) => ({ page, finish }) }');
+  }
+
   const hooks = options.hooks ?? {};
   for (const name of ['before', 'afterTarget', 'afterMerge']) {
     if (hooks[name] !== undefined && typeof hooks[name] !== 'function') {
@@ -136,6 +142,7 @@ export function normalizeOptions(options) {
     sharedDirs,
     verifyAssets,
     verifyLinks,
+    pageChecks,
     hooks,
     strict: options.strict === true,
     quiet: options.quiet === true,

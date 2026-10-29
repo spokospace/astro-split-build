@@ -14,14 +14,23 @@ import { SplitBuildError } from './errors.js';
 import { createInfo, normalizeOptions } from './config.js';
 import { cpTreeWithRetry, rmTree, sleepSyncMs } from './fs-safe.js';
 import { mergeTargets } from './merge.js';
-import { formatMissingRefs, verifyAssetRefs } from './verify-assets.js';
-import { formatLinkReport, hasLinkProblems, verifyInternalLinks } from './verify-links.js';
+import { scanPages } from './scan-pages.js';
+import { assetRefsCheck, formatMissingRefs } from './verify-assets.js';
+import { formatLinkReport, hasLinkProblems, internalLinksCheck } from './verify-links.js';
 import { toPosixPath } from './walk.js';
 
 export { SplitBuildError } from './errors.js';
 export { mergeTargets } from './merge.js';
-export { formatMissingRefs, verifyAssetRefs } from './verify-assets.js';
-export { extractLinks, formatLinkReport, hasLinkProblems, verifyInternalLinks } from './verify-links.js';
+export { scanPages } from './scan-pages.js';
+export { detach, escapeRegExp } from './text.js';
+export { assetRefsCheck, formatMissingRefs, verifyAssetRefs } from './verify-assets.js';
+export {
+  extractLinks,
+  formatLinkReport,
+  hasLinkProblems,
+  internalLinksCheck,
+  verifyInternalLinks,
+} from './verify-links.js';
 export { cpTreeWithRetry, rmTree } from './fs-safe.js';
 export { walkDist } from './walk.js';
 
@@ -53,6 +62,8 @@ export { walkDist } from './walk.js';
  * @property {string[]} [sharedDirs] content-hashed dirs merged from every target
  * @property {false | { dir: string }} [verifyAssets]
  * @property {false | { site: string, redirects?: Map<string, string> | (() => Map<string, string>) }} [verifyLinks]
+ * @property {{ name: string, check: import('./scan-pages.js').PageCheck }[]} [pageChecks] run in the
+ *   same pass over the merged pages; each check's finish() returns `{ problems: string[], summary: string }`
  * @property {{ before?: Function, afterTarget?: Function, afterMerge?: Function }} [hooks]
  * @property {boolean} [strict] a missing non-root subdir fails instead of warning
  * @property {boolean} [quiet]
@@ -183,49 +194,78 @@ export async function splitBuild(options) {
   });
 
   // Verify the merge before the temp builds are thrown away: they are what
-  // someone debugging a broken reference needs.
+  // someone debugging a broken reference needs. Every check reads the pages in
+  // one pass; every target links into the others (language switcher,
+  // hreflang), so only the merged output can tell whether a link resolves.
+  // Each entry pairs a check with the report of its own result, so the
+  // results of one pass can't be handed to the wrong reporter.
+  const entries = [];
   if (o.verifyAssets) {
-    info('\n🔍 Verifying asset references...');
-    const { refCount, pageCount, missing } = verifyAssetRefs({ outDir: o.outDir, dir: o.verifyAssets.dir });
-    if (missing.size > 0) {
-      logger.error(
-        `${missing.size} referenced asset(s) are not in ${outLabel}/${o.verifyAssets.dir}/.\n\n` +
-          `${formatMissingRefs(missing)}\n\n` +
-          `These pages will 404 the bundle and their islands will not hydrate.\n` +
-          `Check that every target's ${o.verifyAssets.dir}/ is listed in sharedDirs.`
-      );
-      throw new SplitBuildError('BROKEN_ASSET_REFS', `${missing.size} referenced asset(s) are missing from ${outLabel}/`, {
-        missing,
-      });
-    }
-    logger.log(`✅ Asset references: ${refCount} reference(s) across ${pageCount} page(s) all resolve.`);
+    const { dir } = o.verifyAssets;
+    entries.push({
+      check: assetRefsCheck({ dir }),
+      report: ({ refCount, pageCount, missing }) => {
+        if (missing.size > 0) {
+          logger.error(
+            `${missing.size} referenced asset(s) are not in ${outLabel}/${dir}/.\n\n` +
+              `${formatMissingRefs(missing)}\n\n` +
+              `These pages will 404 the bundle and their islands will not hydrate.\n` +
+              `Check that every target's ${dir}/ is listed in sharedDirs.`
+          );
+          throw new SplitBuildError('BROKEN_ASSET_REFS', `${missing.size} referenced asset(s) are missing from ${outLabel}/`, {
+            missing,
+          });
+        }
+        logger.log(`✅ Asset references: ${refCount} reference(s) across ${pageCount} page(s) all resolve.`);
+      },
+    });
   }
-
-  // Every target links into the others (language switcher, hreflang), so
-  // only the merged output can tell whether a link resolves.
   if (o.verifyLinks) {
-    info('\n🔍 Verifying internal links...');
     // A function is read only now: the redirect map may be generated into
     // the build output.
-    const { redirects } = o.verifyLinks;
-    const result = verifyInternalLinks({
-      outDir: o.outDir,
-      site: o.verifyLinks.site,
-      assetsDir: o.verifyAssets ? o.verifyAssets.dir : undefined,
-      redirects: typeof redirects === 'function' ? redirects() : redirects,
+    const { site, redirects } = o.verifyLinks;
+    entries.push({
+      check: internalLinksCheck({
+        site,
+        assetsDir: o.verifyAssets ? o.verifyAssets.dir : undefined,
+        redirects: typeof redirects === 'function' ? redirects() : redirects,
+      }),
+      report: (result) => {
+        if (hasLinkProblems(result)) {
+          logger.error(
+            `${formatLinkReport(result)}\n\n` +
+              `These links 404 on the built site. Fix the code that generates the link or the route.`
+          );
+          throw new SplitBuildError('BROKEN_INTERNAL_LINKS', `internal links in ${outLabel}/ do not resolve`, {
+            missing: result.missing,
+            nonReciprocal: result.nonReciprocal,
+            conflicting: result.conflicting,
+          });
+        }
+        logger.log(`✅ Internal links: ${result.linkCount} link(s) across ${result.pageCount} page(s) all resolve.`);
+      },
     });
-    if (hasLinkProblems(result)) {
-      logger.error(
-        `${formatLinkReport(result)}\n\n` +
-          `These links 404 on the built site. Fix the code that generates the link or the route.`
-      );
-      throw new SplitBuildError('BROKEN_INTERNAL_LINKS', `internal links in ${outLabel}/ do not resolve`, {
-        missing: result.missing,
-        nonReciprocal: result.nonReciprocal,
-        conflicting: result.conflicting,
-      });
-    }
-    logger.log(`✅ Internal links: ${result.linkCount} link(s) across ${result.pageCount} page(s) all resolve.`);
+  }
+  for (const { name, check } of o.pageChecks) {
+    entries.push({
+      check,
+      report: ({ problems, summary }) => {
+        if (problems.length > 0) {
+          logger.error(`${name}:\n${problems.map((line) => `  ${line}`).join('\n')}`);
+          throw new SplitBuildError('PAGE_CHECK_FAILED', `page check "${name}" failed on ${outLabel}/`, {
+            check: name,
+            problems,
+          });
+        }
+        logger.log(`✅ ${name}: ${summary}`);
+      },
+    });
+  }
+
+  if (entries.length > 0) {
+    info(`\n🔍 Checking pages (${entries.length} check(s), one pass)...`);
+    const results = scanPages({ outDir: o.outDir, checks: entries.map(({ check }) => check) });
+    entries.forEach(({ report }, index) => report(results[index]));
   }
 
   await runHook('afterMerge', [context]);

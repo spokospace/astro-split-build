@@ -73,15 +73,42 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 | `sharedDirs` | `[]` | Content-hashed directories merged from every target. A filename collision means identical bytes, so overwriting is safe. |
 | `verifyAssets` | `false` | `{ dir }` checks every `/<dir>/<file>` reference in every `.html` file of the merged output. |
 | `verifyLinks` | `false` | `{ site, redirects? }` checks every internal `<a href>`, `<link rel=canonical>` and `<link rel=alternate hreflang>` of the merged output: each must resolve to a file in `outDir` (`/x/` → `x/index.html`, also `x.html` and direct files), hreflang alternates must link back, and one page may not give one hreflang two URLs. Internal means root- or page-relative, or absolute on `site`; anchors, queries, other origins, `mailto:`-style schemes and `verifyAssets.dir` are skipped. `redirects` (a `Map` of old path → target, or a function returning one, called after the merge) lets an `<a>` resolve through a server-side redirect when the redirect ends on a built page; a canonical or alternate must name the built page itself. |
+| `pageChecks` | `[]` | `{ name, check }[]`: your own checks of the merged pages, run in the same pass as `verifyAssets` and `verifyLinks`. See [Page checks](#page-checks). |
 | `hooks.before(ctx)` | none | Before anything is wiped, for example to generate images the builds read. |
 | `hooks.afterTarget(target, ctx)` | none | After a target's build, before it is saved. `ctx.targetDir` is `outDir` for the root target and `outDir/<subdir>` otherwise. What you write there is part of the saved build, for example a Pagefind index. |
-| `hooks.afterMerge(ctx)` | none | After the merge and the asset and link checks, before `tempDir` is removed. |
+| `hooks.afterMerge(ctx)` | none | After the merge and the page checks, before `tempDir` is removed. |
 | `strict` | `false` | A non-root target whose `subdir` is missing fails the run instead of warning. |
 | `quiet` | `false` | One line per target, with the command's own output captured. Warnings still print. |
 | `settleMs` | `500` | Pause after each save, for filesystems that lag behind their writes. |
 | `logger` | console | `{ log, warn, error, write }`. |
 
 Targets always build one after another. There is no concurrency option, because parallel builds bring back the limits this exists to avoid.
+
+## Page checks
+
+After the merge, `verifyAssets`, `verifyLinks` and every entry of `pageChecks` read the pages in **one pass**: `outDir` is listed once and each `.html` file is read once, whatever the number of checks. A big site's output is gigabytes of HTML, so a separate walk per check adds up.
+
+A check is a function of the scan's context that returns what to do with each page and what to report at the end:
+
+```js
+const noLoremIpsum = ({ outDir, files, pages }) => {
+  // files: every output file, relative to outDir with forward slashes; pages: the sorted .html ones
+  const problems = [];
+  return {
+    page(file, html) {
+      if (html.includes('Lorem ipsum')) problems.push(`${file} still has placeholder text`);
+    },
+    finish: () => ({ problems, summary: `no placeholder text in ${pages.length} page(s)` }),
+  };
+};
+
+export default {
+  // ...
+  pageChecks: [{ name: 'Placeholder text', check: noLoremIpsum }],
+};
+```
+
+A non-empty `problems` fails the run with `PAGE_CHECK_FAILED`; otherwise `summary` is logged. `scanPages({ outDir, checks })` runs the same scan on a finished build, and `assetRefsCheck` and `internalLinksCheck` are the built-in checks in that form.
 
 ## Failures
 
@@ -94,9 +121,10 @@ Every intended failure is a `SplitBuildError` with a `code`:
 | `HOOK_FAILED` | A hook threw | `hook`, `target` |
 | `COPY_FAILED` | A save or merge copy still failed after 5 attempts | none |
 | `MISSING_TARGET_OUTPUT` | The root build is missing, or a subdir is missing with `strict` | `target` |
-| `OUT_DIR_MISSING` | `verifyAssetRefs` or `verifyInternalLinks` found no `outDir` | `outDir` |
+| `OUT_DIR_MISSING` | `scanPages` (and so `verifyAssetRefs` or `verifyInternalLinks`) found no `outDir` | `outDir` |
 | `BROKEN_ASSET_REFS` | A page references an asset that is not in the merged output | `missing: Map<ref, page>` |
 | `BROKEN_INTERNAL_LINKS` | A page links a URL that was not built, an hreflang alternate is not reciprocal, or a page gives one hreflang two URLs | `missing: Map<path, { count, pages }>`, `nonReciprocal`, `conflicting` |
+| `PAGE_CHECK_FAILED` | An entry of `pageChecks` reported problems | `check` (its name), `problems` |
 
 On failure `tempDir` is kept, so the saved builds can be inspected. **`outDir` may be partial**, because the merge wipes it first. Deploy only on a zero exit code, and swap releases rather than serving `outDir` in place.
 
@@ -104,4 +132,4 @@ The CLI exits `1` on any failure.
 
 ## Lower-level exports
 
-`mergeTargets`, `verifyAssetRefs`, `formatMissingRefs`, `verifyInternalLinks`, `formatLinkReport`, `hasLinkProblems`, `extractLinks`, `cpTreeWithRetry`, `rmTree` and `walkDist` are exported for scripts that need one step on its own, for example a standalone check of a finished build.
+`mergeTargets`, `scanPages`, `detach` (copy a substring of a page before keeping it across pages, so the page itself can be freed), `escapeRegExp`, `assetRefsCheck`, `verifyAssetRefs`, `formatMissingRefs`, `internalLinksCheck`, `verifyInternalLinks`, `formatLinkReport`, `hasLinkProblems`, `extractLinks`, `cpTreeWithRetry`, `rmTree` and `walkDist` are exported for scripts that need one step on its own, for example a standalone check of a finished build.

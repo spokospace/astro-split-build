@@ -14,10 +14,9 @@
 // directory (that one is `verifyAssetRefs`) are skipped; the query and the
 // fragment are ignored.
 
-import { existsSync, readFileSync } from 'fs';
-import { join, relative } from 'path';
-import { SplitBuildError } from './errors.js';
-import { toPosixPath, walkDist } from './walk.js';
+import { scanPages } from './scan-pages.js';
+import { detach } from './text.js';
+import { toPosixPath } from './walk.js';
 
 const SKIPPED_SCHEMES = /^(?:mailto|tel|sms|javascript|data|blob):/i;
 
@@ -82,42 +81,30 @@ export function extractLinks(html) {
 }
 
 /**
- * @param {{ outDir: string, site: string, assetsDir?: string, redirects?: Map<string, string> }} options
+ * The internal link check as a page check for `scanPages`.
+ * @param {{ site: string, assetsDir?: string, redirects?: Map<string, string> }} options
  *   `site` is the production origin (Astro's `site`); absolute links on it are
  *   internal. `redirects` maps URL paths the server redirects (with or without
  *   the trailing slash) to their targets: an `<a>` to one resolves when the
  *   redirect ends on a built page or another origin. A canonical or an
  *   hreflang alternate must name the built page itself.
- * @returns {{
+ * @returns {import('./scan-pages.js').PageCheck} finishing with {
  *   linkCount: number,
  *   pageCount: number,
  *   missing: Map<string, { count: number, pages: string[] }>,
  *   nonReciprocal: { page: string, hreflang: string, target: string }[],
  *   conflicting: { page: string, hreflang: string, targets: string[] }[],
- * }}
+ * }
  *   `missing` maps each URL path that resolves to no file to how often it was
  *   linked and the first few pages that linked it; `nonReciprocal` lists
  *   alternates whose target exists but does not list the page back;
  *   `conflicting` lists pages that give one hreflang two different URLs.
  */
-export function verifyInternalLinks({ outDir, site, assetsDir, redirects = new Map() }) {
-  if (!existsSync(outDir)) {
-    throw new SplitBuildError('OUT_DIR_MISSING', `${outDir} not found — run a build first.`, { outDir });
-  }
+export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) => ({ files, pages }) => {
   const origin = new URL(site).origin;
   const assetsPrefix = assetsDir ? `/${toPosixPath(assetsDir).replace(/^\/+|\/+$/g, '')}/` : null;
 
-  // One walk lists every output file; resolving a link is then a Set lookup,
-  // not a stat per link (a full build has millions of links).
-  const files = new Set(
-    walkDist(outDir, (entry) => (entry.isDirectory() ? 'recurse' : 'collect')).map((full) =>
-      toPosixPath(relative(outDir, full))
-    )
-  );
-  // Sorted, so the report reads the same on every filesystem.
-  const htmlFiles = [...files].filter((file) => file.endsWith('.html')).sort();
-
-  /** The output file a URL path is served from, or null. */
+  /** The output file a URL path is served from, or null. A Set lookup, not a stat per link. */
   const resolveFile = (path) => {
     const bare = path.replace(/^\/+/, '');
     if (bare === '' || bare.endsWith('/')) return files.has(`${bare}index.html`) ? `${bare}index.html` : null;
@@ -154,7 +141,7 @@ export function verifyInternalLinks({ outDir, site, assetsDir, redirects = new M
   const internalPathOf = (href, pageUrl) => {
     const pageIndependent = href.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(href);
     if (!pageIndependent) return toInternalPath(href, pageUrl);
-    if (!pathCache.has(href)) pathCache.set(href, toInternalPath(href, pageUrl));
+    if (!pathCache.has(href)) pathCache.set(detach(href), toInternalPath(href, pageUrl));
     return pathCache.get(href);
   };
 
@@ -189,12 +176,12 @@ export function verifyInternalLinks({ outDir, site, assetsDir, redirects = new M
   const built = new Set();
   let linkCount = 0;
 
-  for (const file of htmlFiles) {
+  const page = (file, html) => {
     const pagePath = pageUrlPath(file);
     const pageUrl = new URL(pagePath, origin);
     const cluster = new Map();
 
-    for (const { href, kind, hreflang } of extractLinks(readFileSync(join(outDir, file), 'utf8'))) {
+    for (const { href, kind, hreflang } of extractLinks(html)) {
       const path = internalPathOf(href, pageUrl);
       if (path === null) continue;
       linkCount++;
@@ -211,11 +198,13 @@ export function verifyInternalLinks({ outDir, site, assetsDir, redirects = new M
       if (kind !== 'hreflang') continue;
       // Keyed by the page the alternate resolves to, so "/x" and "/x/" name
       // the same page in the reciprocity pass.
-      const file = resolveFile(path);
-      const target = file ? pageUrlPath(file) : path;
+      const targetFile = resolveFile(path);
+      const target = targetFile ? pageUrlPath(targetFile) : path;
       const previous = cluster.get(hreflang);
       if (previous === undefined) {
-        cluster.set(hreflang, target);
+        // Clusters live until the reciprocity pass: a key cut from the page
+        // would keep every page with alternates in memory.
+        cluster.set(detach(hreflang), target);
       } else if (previous !== target) {
         const known = conflicting.find((c) => c.page === pagePath && c.hreflang === hreflang);
         if (known) known.targets.push(target);
@@ -223,21 +212,34 @@ export function verifyInternalLinks({ outDir, site, assetsDir, redirects = new M
       }
     }
     if (cluster.size > 0) clusters.set(pagePath, cluster);
-  }
+  };
 
-  // A → B for some hreflang means B must list A for some hreflang (x-default
-  // included). Targets that don't exist are already in `missing`.
-  const nonReciprocal = [];
-  for (const [pagePath, cluster] of clusters) {
-    for (const [hreflang, target] of cluster) {
-      if (target === pagePath || !resolveFile(target)) continue;
-      const back = clusters.get(target);
-      if (back && [...back.values()].includes(pagePath)) continue;
-      nonReciprocal.push({ page: pagePath, hreflang, target });
+  const finish = () => {
+    // A → B for some hreflang means B must list A for some hreflang (x-default
+    // included). Targets that don't exist are already in `missing`.
+    const nonReciprocal = [];
+    for (const [pagePath, cluster] of clusters) {
+      for (const [hreflang, target] of cluster) {
+        if (target === pagePath || !resolveFile(target)) continue;
+        const back = clusters.get(target);
+        if (back && [...back.values()].includes(pagePath)) continue;
+        nonReciprocal.push({ page: pagePath, hreflang, target });
+      }
     }
-  }
+    return { linkCount, pageCount: pages.length, missing, nonReciprocal, conflicting };
+  };
 
-  return { linkCount, pageCount: htmlFiles.length, missing, nonReciprocal, conflicting };
+  return { page, finish };
+};
+
+/**
+ * Check the internal links of every page of `outDir` on their own; see
+ * `internalLinksCheck` for the options and the result.
+ * @param {{ outDir: string, site: string, assetsDir?: string, redirects?: Map<string, string> }} options
+ */
+export function verifyInternalLinks({ outDir, ...options }) {
+  const [result] = scanPages({ outDir, checks: [internalLinksCheck(options)] });
+  return result;
 }
 
 /** Whether `verifyInternalLinks` found anything to report. */
