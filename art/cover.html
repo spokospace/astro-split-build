@@ -17,14 +17,14 @@
   :root {
     --bg: #fbfaf7;
     --grid: rgba(15, 23, 42, .045);
-    --glow: rgba(140, 92, 245, .14);
-    --glow-2: rgba(255, 93, 1, .10);
+    --glow: rgba(188, 82, 238, .14);
+    --glow-2: rgba(50, 69, 255, .10);
     --ink: #0f172a;
     --muted: #475569;
     --faint: #94a3b8;
     --chip-bg: #ffffff;
     --chip-border: #e2e8f0;
-    --accent: #8c5cf5;
+    --accent: #3245ff;
     --window: #ffffff;
     --window-border: rgba(15, 23, 42, .08);
     --shadow: 0 40px 80px -30px rgba(15, 23, 42, .35), 0 12px 30px -12px rgba(15, 23, 42, .18);
@@ -33,17 +33,18 @@
     --term-ink: #1e293b;
     --term-dim: #94a3b8;
     --ok: #16a34a;
-    --num: #7c3aed;
+    --num: #6b3df0;
     --pill: #f1f5f9;
     --pill-ink: #334155;
-    --dist: #f5f3ff;
-    --dist-border: #ddd6fe;
+    --dist: #f3f0ff;
+    --dist-border: #d9d2fe;
   }
   .dark {
     --bg: #0b0f16;
     --grid: rgba(148, 163, 184, .06);
-    --glow: rgba(140, 92, 245, .20);
-    --glow-2: rgba(255, 93, 1, .10);
+    --glow: rgba(136, 26, 189, .32);
+    --glow-2: rgba(50, 69, 255, .16);
+    --accent: #7b8aff;
     --ink: #f1f5f9;
     --muted: #a3b1c2;
     --faint: #64748b;
@@ -57,7 +58,7 @@
     --term-ink: #dbe3ee;
     --term-dim: #5f6f86;
     --ok: #4ade80;
-    --num: #c4b5fd;
+    --num: #d3a6ff;
     --pill: #1a2230;
     --pill-ink: #cbd5e1;
     --dist: #1c1830;
@@ -84,12 +85,13 @@
     display: flex; align-items: center; gap: 14px;
     font-size: 17px; font-weight: 700; letter-spacing: .32em; color: var(--muted);
   }
-  .eyebrow .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 6px rgba(140, 92, 245, .18); }
+  .eyebrow .dot { width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #3245ff, #bc52ee); box-shadow: 0 0 0 6px rgba(118, 76, 247, .18); }
   h1 { margin-top: 30px; font-weight: 900; letter-spacing: -.035em; line-height: .95; }
   h1 .top { display: block; font-size: 92px; }
   h1 .bottom {
     display: block; font-size: 112px;
-    background: linear-gradient(95deg, #ff5d01 0%, #e0407a 45%, #8c5cf5 100%);
+    /* astro.build's brand gradient (2026): blue-violet to purple */
+    background: linear-gradient(83deg, #3245ff 0%, #bc52ee 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     padding-bottom: 6px;
   }
