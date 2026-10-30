@@ -29,13 +29,18 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    }
   },
+  "types": "./types/index.d.ts",
   "bin": {
     "astro-split-build": "./src/cli.js"
   },
   "files": [
     "src",
+    "types",
     "CHANGELOG.md"
   ],
   "engines": {
@@ -46,6 +51,13 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "typecheck": "npm run build:types && tsc -p test/types",
+    "build:types": "tsc -p .",
+    "prepare": "npm run build:types"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "6.0.3"
   }
 }

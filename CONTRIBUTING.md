@@ -1,7 +1,9 @@
 # Contributing
 
 ```bash
+npm install                   # TypeScript, for the generated types (prepare)
 npm test                      # the package's tests, Node alone
+npm run typecheck             # the JSDoc, and the types a TypeScript user sees
 cd examples/astro-i18n
 npm install && npm run build  # a real Astro site built with your change
 SITE_BASE=/docs npm run build # the same site under a base path

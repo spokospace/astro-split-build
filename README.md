@@ -32,6 +32,7 @@ It needs Node 20 or newer and has no dependencies. The version is 0.x: the API c
 
 ```js
 // split-build.config.js
+/** @type {import('astro-split-build').SplitBuildOptions} */
 export default {
   targets: [
     { name: 'en', root: true },     // copied whole into outDir
@@ -58,6 +59,24 @@ Or from your own script:
 import { splitBuild } from 'astro-split-build';
 
 const { targets, totalSeconds } = await splitBuild(config);
+```
+
+### TypeScript
+
+The package is plain JavaScript and ships `.d.ts` files, so the config and every export are typed: `SplitBuildOptions`, `PageCheck<Result>`, `PageCheckReport`, `AssetRefsResult`, `InternalLinksResult`, `SplitBuildErrorCode` and the rest. The `@type` comment above types a plain `.js` config in your editor. A page check written in TypeScript:
+
+```ts
+import type { PageCheck, PageCheckReport } from 'astro-split-build';
+
+export const noLoremIpsum: PageCheck<PageCheckReport> = ({ pages }) => {
+  const problems: string[] = [];
+  return {
+    page(file, html) {
+      if (html.includes('Lorem ipsum')) problems.push(`${file} still has placeholder text`);
+    },
+    finish: () => ({ problems, summary: `no placeholder text in ${pages.length} page(s)` }),
+  };
+};
 ```
 
 ### With Astro
@@ -157,4 +176,4 @@ The CLI exits `1` on any failure.
 
 ## Lower-level exports
 
-`mergeTargets`, `scanPages`, `detach` (copy a substring of a page before keeping it across pages, so the page itself can be freed), `escapeRegExp`, `assetRefsCheck`, `verifyAssetRefs`, `formatMissingRefs`, `internalLinksCheck`, `verifyInternalLinks`, `formatLinkReport`, `hasLinkProblems`, `extractLinks`, `cpTreeWithRetry`, `rmTree` and `walkDist` are exported for scripts that need one step on its own, for example a standalone check of a finished build.
+`mergeTargets`, `scanPages`, `toPosixPath`, `detach` (copy a substring of a page before keeping it across pages, so the page itself can be freed), `escapeRegExp`, `assetRefsCheck`, `verifyAssetRefs`, `formatMissingRefs`, `internalLinksCheck`, `verifyInternalLinks`, `formatLinkReport`, `hasLinkProblems`, `extractLinks`, `cpTreeWithRetry`, `rmTree` and `walkDist` are exported for scripts that need one step on its own, for example a standalone check of a finished build.

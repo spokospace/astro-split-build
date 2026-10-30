@@ -32,7 +32,7 @@ export {
   verifyInternalLinks,
 } from './verify-links.js';
 export { cpTreeWithRetry, rmTree } from './fs-safe.js';
-export { walkDist } from './walk.js';
+export { toPosixPath, walkDist } from './walk.js';
 
 /**
  * @typedef {object} SplitBuildTarget
@@ -42,14 +42,39 @@ export { walkDist } from './walk.js';
  */
 
 /**
+ * @typedef {object} SplitBuildLogger
+ * @property {(...args: any[]) => void} log
+ * @property {(...args: any[]) => void} warn
+ * @property {(...args: any[]) => void} error
+ * @property {(text: string) => void} write progress without a newline (quiet mode)
+ */
+
+/**
  * @typedef {object} SplitBuildContext
  * @property {string} cwd
  * @property {string} outDir
  * @property {string} tempDir
  * @property {boolean} quiet
- * @property {object} logger
+ * @property {SplitBuildLogger} logger
  * @property {string} [targetDir] afterTarget only: outDir for the root target, outDir/<subdir> otherwise
  */
+
+/**
+ * What a `pageChecks` entry's check returns from `finish()`.
+ * @typedef {object} PageCheckReport
+ * @property {string[]} problems one line each; any problem fails the run with PAGE_CHECK_FAILED
+ * @property {string} summary logged when there are none
+ */
+
+/**
+ * @template [Result=unknown]
+ * @typedef {import('./scan-pages.js').PageCheck<Result>} PageCheck
+ */
+/** @typedef {import('./scan-pages.js').PageScanContext} PageScanContext */
+/** @typedef {import('./errors.js').SplitBuildErrorCode} SplitBuildErrorCode */
+/** @typedef {import('./verify-assets.js').AssetRefsResult} AssetRefsResult */
+/** @typedef {import('./verify-links.js').InternalLinksResult} InternalLinksResult */
+/** @typedef {import('./verify-links.js').PageLink} PageLink */
 
 /**
  * @typedef {object} SplitBuildOptions
@@ -63,13 +88,17 @@ export { walkDist } from './walk.js';
  * @property {false | { dir: string }} [verifyAssets]
  * @property {false | { site: string, redirects?: Map<string, string> | (() => Map<string, string>) }} [verifyLinks]
  * @property {string} [base] the path the site is served under (Astro's `base`, e.g. "/docs"); every page check sees it
- * @property {{ name: string, check: import('./scan-pages.js').PageCheck }[]} [pageChecks] run in the
- *   same pass over the merged pages; each check's finish() returns `{ problems: string[], summary: string }`
- * @property {{ before?: Function, afterTarget?: Function, afterMerge?: Function }} [hooks]
+ * @property {{ name: string, check: PageCheck<PageCheckReport> }[]} [pageChecks] run in
+ *   the same pass over the merged pages as verifyAssets and verifyLinks
+ * @property {{
+ *   before?: (context: SplitBuildContext) => void | Promise<void>,
+ *   afterTarget?: (target: SplitBuildTarget, context: SplitBuildContext & { targetDir: string }) => void | Promise<void>,
+ *   afterMerge?: (context: SplitBuildContext) => void | Promise<void>,
+ * }} [hooks]
  * @property {boolean} [strict] a missing non-root subdir fails instead of warning
  * @property {boolean} [quiet]
  * @property {number} [settleMs] pause after each save, for filesystems that lag
- * @property {object} [logger] { log, warn, error, write }
+ * @property {Partial<SplitBuildLogger>} [logger] merged over console
  */
 
 const separator = '='.repeat(60);

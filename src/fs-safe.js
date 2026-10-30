@@ -13,6 +13,10 @@ import { cpSync, existsSync, mkdirSync, rmSync } from 'fs';
 // to 10/100. Use those everywhere we wipe a tree.
 export const rmTreeOptions = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 
+/**
+ * Remove `path` recursively, retrying the FS races of shared hosting.
+ * @param {string} path
+ */
 export const rmTree = (path) => {
   if (existsSync(path)) rmSync(path, rmTreeOptions);
 };
@@ -65,6 +69,14 @@ const nodeCp = (src, dst) => {
  *
  * `copy`, `sleep` and `logger` exist for tests; real callers pass nothing
  * and get `cp -rf` (POSIX) or `fs.cpSync` (Windows / no `cp`).
+ * @param {string} src
+ * @param {string} dst
+ * @param {{
+ *   copy?: (src: string, dst: string) => void,
+ *   sleep?: (ms: number) => unknown,
+ *   logger?: Pick<import('./index.js').SplitBuildLogger, 'warn'>,
+ *   maxAttempts?: number,
+ * }} [options]
  */
 export const cpTreeWithRetry = (src, dst, { copy, sleep = sleepSyncMs, logger = console, maxAttempts = 5 } = {}) => {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

@@ -25,14 +25,17 @@ import { toPosixPath, walkDist } from './walk.js';
  * A page check is created once per scan with its context, sees every page
  * through `page(file, html)` (`file` relative to outDir, forward slashes) and
  * returns its result from `finish()`.
- * @typedef {(context: PageScanContext) => { page: (file: string, html: string) => void, finish: () => any }} PageCheck
+ * @template [Result=unknown]
+ * @typedef {(context: PageScanContext) => { page: (file: string, html: string) => void, finish: () => Result }} PageCheck
  */
 
 /**
  * Run `checks` over every HTML page of `outDir` in one pass.
- * @param {{ outDir: string, base?: string, checks: PageCheck[] }} options
+ * @template {PageCheck<any>[]} Checks
+ * @param {{ outDir: string, base?: string, checks: [...Checks] }} options
  *   `base` is the path the site is served under (Astro's `base`).
- * @returns {any[]} each check's `finish()` result, in the order of `checks`
+ * @returns {{ [K in keyof Checks]: Checks[K] extends PageCheck<infer Result> ? Result : never }}
+ *   each check's `finish()` result, in the order of `checks`
  */
 export function scanPages({ outDir, base, checks }) {
   if (!existsSync(outDir)) {
@@ -55,5 +58,6 @@ export function scanPages({ outDir, base, checks }) {
     const html = readFileSync(join(outDir, file), 'utf8');
     for (const check of running) check.page(file, html);
   }
-  return running.map((check) => check.finish());
+  // `map` loses the tuple; the results are in the order of `checks`.
+  return /** @type {any} */ (running.map((check) => check.finish()));
 }

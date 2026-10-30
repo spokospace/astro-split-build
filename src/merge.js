@@ -32,7 +32,7 @@ const label = (target) => target.name.toUpperCase();
  * @param {string[]} [options.sharedDirs]
  * @param {boolean} [options.strict] a missing non-root subdir fails instead of warning
  * @param {boolean} [options.quiet]
- * @param {{ log: Function, warn: Function }} [options.logger]
+ * @param {Pick<import('./index.js').SplitBuildLogger, 'log' | 'warn'>} [options.logger]
  * @param {(src: string, dst: string) => void} [options.copy] test seam
  * @param {(ms: number) => void} [options.sleep] test seam for the retry pause
  */
