@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>astro-split-build cover</title>
+<!--
+  README cover. Render at 1600x900 CSS px, device scale 2 (3200x1800):
+  msedge --headless --hide-scrollbars --window-size=1600,900 --force-device-scale-factor=2 \
+    --screenshot=art/cover-light.png "file:///…/art/cover.html"
+  Add ?theme=dark for the dark variant. The terminal shows the real output of
+  catalog.polo.blue's production build of 2026-10-30.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --ink: #111318;
+    --muted: #555b66;
+    --rule: #dcdee3;
+    --term: #ffffff;
+    --term-border: #dcdee3;
+    --term-ink: #1d2027;
+    --dim: #8a909b;
+    --ok: #15803d;
+    --num: #3245ff;
+  }
+  .dark {
+    --bg: #0d0e12;
+    --ink: #eef0f4;
+    --muted: #9aa0ab;
+    --rule: #23262e;
+    --term: #14161b;
+    --term-border: #23262e;
+    --term-ink: #d8dce4;
+    --dim: #5d636e;
+    --ok: #4ade80;
+    --num: #8f9bff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body { background: var(--bg); color: var(--ink); font-family: Inter, "Segoe UI", sans-serif; position: relative; }
+
+  /* astro.build's brand gradient, once: a bar along the top edge. */
+  .bar { position: absolute; inset: 0 0 auto 0; height: 10px; background: linear-gradient(90deg, #3245ff, #bc52ee); }
+
+  .intro { position: absolute; left: 110px; top: 50%; transform: translateY(-50%); width: 610px; }
+  h1 {
+    font-family: "JetBrains Mono", monospace; font-weight: 700; white-space: nowrap;
+    font-size: 56px; letter-spacing: -.035em; line-height: 1.05;
+  }
+  .lead { margin-top: 36px; font-size: 28px; line-height: 1.45; color: var(--muted); }
+  .install {
+    margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace; font-size: 22px; color: var(--muted);
+  }
+  .install b { color: var(--ink); font-weight: 500; }
+
+  .term {
+    position: absolute; left: 790px; top: 50%; transform: translateY(-50%); width: 700px;
+    background: var(--term); border: 1px solid var(--term-border); border-radius: 12px;
+    font-family: "JetBrains Mono", monospace; font-size: 18px; line-height: 1.85;
+    color: var(--term-ink); padding: 30px 36px; white-space: pre;
+  }
+  .term .d { color: var(--dim); }
+  .term .ok { color: var(--ok); font-weight: 700; }
+  .term .n { color: var(--num); font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="bar"></div>
+
+  <section class="intro">
+    <h1>astro-split-build</h1>
+    <p class="lead">Builds a large multi-locale Astro site one locale at a time, merges the builds into one dist/, and fails on missing bundles, dead links and broken hreflang.</p>
+    <p class="install"><b>npm i -D astro-split-build</b></p>
+  </section>
+
+<div class="term"><span class="d">$</span> astro-split-build
+<span class="d">Building EN …</span> <span class="ok">✓</span> <span class="n">59.4s</span>
+<span class="d">Building PL …</span> <span class="ok">✓</span> <span class="n">59.5s</span>
+<span class="d">Building DE …</span> <span class="ok">✓</span> <span class="n">55.0s</span>
+<span class="d">Merging into dist/ …</span> <span class="ok">✓</span>
+
+<span class="ok">✓</span> Asset references  <span class="n">122,958</span>
+<span class="ok">✓</span> Internal links    <span class="n">2,833,064</span>
+<span class="ok">✓</span> hreflang          <span class="d">reciprocal</span>
+<span class="ok">✓</span> Locale leaks      <span class="d">none</span>
+
+<span class="d">8,617 pages · 3 locales · 173.9s</span></div>
+
+  <script>
+    if (new URLSearchParams(location.search).get('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>
