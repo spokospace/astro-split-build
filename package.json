@@ -54,7 +54,7 @@
     "test": "node --test test/*.test.js",
     "typecheck": "npm run build:types && tsc -p test/types",
     "build:types": "tsc -p .",
-    "prepack": "npm run build:types"
+    "prepare": "npm run build:types"
   },
   "devDependencies": {
     "@types/node": "20.19.43",

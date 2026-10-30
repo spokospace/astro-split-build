@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - TypeScript declarations (`types/`), generated from the JSDoc on publish. The config, the results and the page checks are typed: `SplitBuildOptions`, `PageCheck<Result>`, `PageCheckReport`, `AssetRefsResult`, `InternalLinksResult`, `SplitBuildErrorCode`, the hook and logger signatures. No runtime change, and still no dependencies.
 - `toPosixPath` is exported.

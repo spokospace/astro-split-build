@@ -28,7 +28,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      # TypeScript, for the .d.ts files `npm publish` builds (prepack).
+      # TypeScript, for the .d.ts files `npm publish` builds (prepare).
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run typecheck

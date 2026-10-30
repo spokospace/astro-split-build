@@ -1,6 +1,7 @@
 {
   // The package is plain JavaScript with JSDoc; this only checks it and emits
-  // the .d.ts files TypeScript users get (types/, built on `npm pack`).
+  // the .d.ts files TypeScript users get (types/, built by the `prepare`
+  // script: on npm install in this repo, git installs, pack and publish).
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,

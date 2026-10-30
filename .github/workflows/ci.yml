@@ -37,7 +37,7 @@ jobs:
       # the .d.ts files, then a consumer-side test compiles against them.
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
-      # The file list only; the types were just built, so skip prepack.
+      # The file list only; the types were just built, so skip prepare.
       - run: npm pack --dry-run --ignore-scripts
 
   example:
