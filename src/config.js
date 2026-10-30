@@ -27,6 +27,7 @@ const isWithin = (parent, child) => {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 };
 
+/** @type {import('./index.js').SplitBuildLogger} */
 export const defaultLogger = {
   log: (...args) => console.log(...args),
   warn: (...args) => console.warn(...args),

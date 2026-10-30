@@ -1,0 +1,12 @@
+{
+  // Type test for consumers: resolves 'astro-split-build' through the
+  // package's own "exports" (types/index.d.ts), as a TypeScript user would.
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "es2022",
+    "module": "nodenext",
+    "types": ["node"]
+  },
+  "files": ["usage.ts"]
+}

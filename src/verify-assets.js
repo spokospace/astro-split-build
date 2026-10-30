@@ -15,14 +15,20 @@ import { scanPages } from './scan-pages.js';
 import { escapeRegExp, trimSlashes } from './text.js';
 
 /**
- * The asset reference check as a page check for `scanPages`.
+ * @typedef {object} AssetRefsResult
+ * @property {number} refCount
+ * @property {number} pageCount
+ * @property {Map<string, string>} missing each unresolved reference → the
+ *   first page (as a URL path) that pointed at it
+ */
+
+/**
+ * The asset reference check as a page check for `scanPages`. Under a base
+ * ("/docs/"), a reference must carry it: "/_astro/x.js" would 404 there, so it
+ * is missing even when dist/_astro/x.js exists.
  * @param {{ dir: string }} options `dir` is the assets directory relative to
  *   outDir (Astro's `build.assets`, `_astro` by default).
- * @returns {import('./scan-pages.js').PageCheck} finishing with
- *   `{ refCount, pageCount, missing: Map<string, string> }`; `missing` maps each
- *   unresolved reference to the first page (as a URL path) that pointed at it.
- *   Under a base ("/docs/"), a reference must carry it: "/_astro/x.js" would
- *   404 there, so it is missing even when dist/_astro/x.js exists.
+ * @returns {import('./scan-pages.js').PageCheck<AssetRefsResult>}
  */
 export const assetRefsCheck = ({ dir }) => ({ files, pages, basePath }) => {
   // A root-relative URL path that ends in <dir>/<file> ("/_astro/App.js",
@@ -57,13 +63,18 @@ export const assetRefsCheck = ({ dir }) => ({ files, pages, basePath }) => {
  * Check the asset references of every page of `outDir` on their own; see
  * `assetRefsCheck` for the result.
  * @param {{ outDir: string, dir: string, base?: string }} options
+ * @returns {AssetRefsResult}
  */
 export function verifyAssetRefs({ outDir, dir, base }) {
   const [result] = scanPages({ outDir, base, checks: [assetRefsCheck({ dir })] });
   return result;
 }
 
-/** The report lines for a non-empty `missing` map, one entry per asset. */
+/**
+ * The report lines for a non-empty `missing` map, one entry per asset.
+ * @param {Map<string, string>} missing reference → first page that pointed at it
+ * @returns {string}
+ */
 export function formatMissingRefs(missing) {
   return [...missing].map(([ref, page]) => `  ✗ ${ref}\n      referenced by /${page}`).join('\n');
 }

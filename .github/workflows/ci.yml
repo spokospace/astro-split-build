@@ -24,6 +24,22 @@ jobs:
       # No dependencies to install: the package and its tests use Node alone.
       - run: npm test
 
+  types:
+    name: Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      # TypeScript is a dev dependency only: it checks the JSDoc and emits
+      # the .d.ts files, then a consumer-side test compiles against them.
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      # The file list only; the types were just built, so skip prepack.
+      - run: npm pack --dry-run --ignore-scripts
+
   example:
     name: Example site (${{ matrix.base || 'no base' }})
     runs-on: ubuntu-latest

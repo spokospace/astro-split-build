@@ -51,15 +51,35 @@ const parseAttrs = (source) => {
 /**
  * The URL path a built HTML file is served at: "a/b/index.html" → "/a/b/", or
  * "/docs/a/b/" under the base "/docs/".
+ * @param {string} file relative to outDir, forward slashes
+ * @param {string} [basePath]
+ * @returns {string}
  */
 export const pageUrlPath = (file, basePath = '/') => `${basePath}${file}`.replace(/(^|\/)index\.html$/, '$1');
+
+/** @typedef {{ href: string, kind: 'a' | 'canonical' | 'hreflang', hreflang?: string }} PageLink */
+
+/**
+ * @typedef {object} InternalLinksResult
+ * @property {number} linkCount
+ * @property {number} pageCount
+ * @property {Map<string, { count: number, pages: string[] }>} missing each URL
+ *   path that resolves to no file → how often it was linked and the first few
+ *   pages that linked it
+ * @property {{ page: string, hreflang: string, target: string }[]} nonReciprocal
+ *   alternates whose target exists but does not list the page back
+ * @property {{ page: string, hreflang: string, targets: string[] }[]} conflicting
+ *   pages that give one hreflang two different URLs
+ */
 
 /**
  * The links of one page: every `<a href>`, the canonical, and the hreflang
  * alternates (with their lowercased `hreflang`). Exported for tests.
- * @returns {{ href: string, kind: 'a' | 'canonical' | 'hreflang', hreflang?: string }[]}
+ * @param {string} html
+ * @returns {PageLink[]}
  */
 export function extractLinks(html) {
+  /** @type {PageLink[]} */
   const links = [];
   for (const [, , rawTag, source] of html.matchAll(MARKUP)) {
     if (!rawTag) continue;
@@ -83,8 +103,15 @@ export function extractLinks(html) {
 }
 
 /**
+ * @typedef {object} InternalLinksOptions
+ * @property {string} site
+ * @property {string} [assetsDir]
+ * @property {Map<string, string>} [redirects]
+ */
+
+/**
  * The internal link check as a page check for `scanPages`.
- * @param {{ site: string, assetsDir?: string, redirects?: Map<string, string> }} options
+ * @param {InternalLinksOptions} options
  *   `site` is the production origin (Astro's `site`); absolute links on it are
  *   internal. The scan's `basePath` (Astro's `base`, "/" by default) is where
  *   outDir is served: links carry it, and a same-origin link outside it is
@@ -94,17 +121,7 @@ export function extractLinks(html) {
  *   redirect ends on a built page or another origin. A canonical or an
  *   hreflang alternate must name the built page itself. Paths in the result
  *   are as served, with `base`.
- * @returns {import('./scan-pages.js').PageCheck} finishing with {
- *   linkCount: number,
- *   pageCount: number,
- *   missing: Map<string, { count: number, pages: string[] }>,
- *   nonReciprocal: { page: string, hreflang: string, target: string }[],
- *   conflicting: { page: string, hreflang: string, targets: string[] }[],
- * }
- *   `missing` maps each URL path that resolves to no file to how often it was
- *   linked and the first few pages that linked it; `nonReciprocal` lists
- *   alternates whose target exists but does not list the page back;
- *   `conflicting` lists pages that give one hreflang two different URLs.
+ * @returns {import('./scan-pages.js').PageCheck<InternalLinksResult>}
  */
 export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) => ({ files, pages, basePath }) => {
   const origin = new URL(site).origin;
@@ -248,14 +265,19 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
 /**
  * Check the internal links of every page of `outDir` on their own; see
  * `internalLinksCheck` for the options and the result.
- * @param {{ outDir: string, base?: string, site: string, assetsDir?: string, redirects?: Map<string, string> }} options
+ * @param {InternalLinksOptions & { outDir: string, base?: string }} options
+ * @returns {InternalLinksResult}
  */
 export function verifyInternalLinks({ outDir, base, ...options }) {
   const [result] = scanPages({ outDir, base, checks: [internalLinksCheck(options)] });
   return result;
 }
 
-/** Whether `verifyInternalLinks` found anything to report. */
+/**
+ * Whether `verifyInternalLinks` found anything to report.
+ * @param {Pick<InternalLinksResult, 'missing' | 'nonReciprocal' | 'conflicting'>} result
+ * @returns {boolean}
+ */
 export const hasLinkProblems = ({ missing, nonReciprocal, conflicting }) =>
   missing.size > 0 || nonReciprocal.length > 0 || conflicting.length > 0;
 
@@ -263,6 +285,9 @@ export const hasLinkProblems = ({ missing, nonReciprocal, conflicting }) =>
  * The report for a `verifyInternalLinks` result: missing targets (most-linked
  * first), then non-reciprocal and conflicting hreflang, each capped at `limit`
  * entries so a systemic bug doesn't print ten thousand lines.
+ * @param {Pick<InternalLinksResult, 'missing' | 'nonReciprocal' | 'conflicting'>} result
+ * @param {{ limit?: number }} [options]
+ * @returns {string}
  */
 export function formatLinkReport({ missing, nonReciprocal, conflicting }, { limit = 50 } = {}) {
   const sections = [];

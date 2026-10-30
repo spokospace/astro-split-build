@@ -1,2 +1,4 @@
 node_modules/
 *.tgz
+# Generated from the JSDoc by `npm run build:types` (runs on `npm pack`/publish).
+/types/

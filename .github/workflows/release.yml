@@ -26,8 +26,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
 
+      # TypeScript, for the .d.ts files `npm publish` builds (prepack).
+      - run: npm ci --no-audit --no-fund
       - run: npm test
+      - run: npm run typecheck
 
       # npm auth comes from the trusted publisher configured for
       # astro-split-build on npmjs.com: @semantic-release/npm exchanges the

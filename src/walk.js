@@ -5,7 +5,11 @@
 import { readdirSync } from 'fs';
 import { join, sep } from 'path';
 
-/** `path` with forward slashes, for log lines and URL paths on Windows too. */
+/**
+ * `path` with forward slashes, for log lines and URL paths on Windows too.
+ * @param {string} path
+ * @returns {string}
+ */
 export const toPosixPath = (path) => path.split(sep).join('/');
 
 /**
@@ -14,6 +18,10 @@ export const toPosixPath = (path) => path.split(sep).join('/');
  * full path into the result array), or any falsy value (skip). This lets
  * callers express "skip these subtree names at depth N", "match these file
  * names", etc. without baking traversal rules into the helper.
+ * @param {string} dir
+ * @param {(entry: import('fs').Dirent, full: string, depth: number) => 'recurse' | 'collect' | false | null | undefined} onEntry
+ * @param {number} [depth]
+ * @returns {string[]} the collected full paths
  */
 export function walkDist(dir, onEntry, depth = 0) {
   let entries;

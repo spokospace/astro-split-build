@@ -1,0 +1,21 @@
+{
+  // The package is plain JavaScript with JSDoc; this only checks it and emits
+  // the .d.ts files TypeScript users get (types/, built on `npm pack`).
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "types",
+    "rootDir": "src",
+    "target": "es2022",
+    "module": "nodenext",
+    "types": ["node"],
+    // TypeScript 6 turns strict on by default. The JSDoc types the public API;
+    // strict checking of every internal closure is not the goal here, and the
+    // consumer test (test/types, strict) checks what users see.
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

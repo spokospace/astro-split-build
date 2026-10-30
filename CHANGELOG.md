@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- TypeScript declarations (`types/`), generated from the JSDoc on publish. The config, the results and the page checks are typed: `SplitBuildOptions`, `PageCheck<Result>`, `PageCheckReport`, `AssetRefsResult`, `InternalLinksResult`, `SplitBuildErrorCode`, the hook and logger signatures. No runtime change, and still no dependencies.
+- `toPosixPath` is exported.
+- `SplitBuildError`'s documented codes include `BROKEN_INTERNAL_LINKS` and `PAGE_CHECK_FAILED`, which it already threw.
+
 ## 0.1.0
 
 First public release.
