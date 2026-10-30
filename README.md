@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/cover-dark.jpg">
+  <img alt="astro-split-build: build a multi-locale Astro site one locale at a time, merge the builds, and fail on broken bundles, links and hreflang" src="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/cover-light.jpg">
+</picture>
+
 # astro-split-build
 
 [![npm](https://img.shields.io/npm/v/astro-split-build)](https://www.npmjs.com/package/astro-split-build) [![CI](https://github.com/spokospace/astro-split-build/actions/workflows/ci.yml/badge.svg)](https://github.com/spokospace/astro-split-build/actions/workflows/ci.yml)
