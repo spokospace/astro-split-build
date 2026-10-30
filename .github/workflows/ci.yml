@@ -55,6 +55,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      # The package's own devDependencies first: installing it by path runs
+      # its `prepare` script (tsc), which npm does not install them for.
+      - run: npm ci --no-audit --no-fund
+        working-directory: .
       # The example depends on the package by path (file:../..), so this
       # builds a real Astro site with the code under review.
       - run: npm install --no-audit --no-fund

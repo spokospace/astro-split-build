@@ -3,6 +3,7 @@
 A six-page Astro site in English, Polish and German, built one locale at a time.
 
 ```bash
+(cd ../.. && npm install)   # the package's dev tools, for its prepare script
 npm install
 npm run build
 ```
