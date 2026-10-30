@@ -7,198 +7,89 @@
   README cover. Render at 1600x900 CSS px, device scale 2 (3200x1800):
   msedge --headless --hide-scrollbars --window-size=1600,900 --force-device-scale-factor=2 \
     --screenshot=art/cover-light.png "file:///…/art/cover.html"
-  Add ?theme=dark for the dark variant. The log in the terminal is the real
-  output of catalog.polo.blue's production build of 2026-10-30.
+  Add ?theme=dark for the dark variant. The terminal shows the real output of
+  catalog.polo.blue's production build of 2026-10-30.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #fbfaf7;
-    --grid: rgba(15, 23, 42, .045);
-    --glow: rgba(188, 82, 238, .14);
-    --glow-2: rgba(50, 69, 255, .10);
-    --ink: #0f172a;
-    --muted: #475569;
-    --faint: #94a3b8;
-    --chip-bg: #ffffff;
-    --chip-border: #e2e8f0;
-    --accent: #3245ff;
-    --window: #ffffff;
-    --window-border: rgba(15, 23, 42, .08);
-    --shadow: 0 40px 80px -30px rgba(15, 23, 42, .35), 0 12px 30px -12px rgba(15, 23, 42, .18);
-    --titlebar: #f8fafc;
+    --bg: #f7f7f8;
+    --ink: #111318;
+    --muted: #555b66;
+    --rule: #dcdee3;
     --term: #ffffff;
-    --term-ink: #1e293b;
-    --term-dim: #94a3b8;
-    --ok: #16a34a;
-    --num: #6b3df0;
-    --pill: #f1f5f9;
-    --pill-ink: #334155;
-    --dist: #f3f0ff;
-    --dist-border: #d9d2fe;
+    --term-border: #dcdee3;
+    --term-ink: #1d2027;
+    --dim: #8a909b;
+    --ok: #15803d;
+    --num: #3245ff;
   }
   .dark {
-    --bg: #0b0f16;
-    --grid: rgba(148, 163, 184, .06);
-    --glow: rgba(136, 26, 189, .32);
-    --glow-2: rgba(50, 69, 255, .16);
-    --accent: #7b8aff;
-    --ink: #f1f5f9;
-    --muted: #a3b1c2;
-    --faint: #64748b;
-    --chip-bg: #121926;
-    --chip-border: #1f2a3a;
-    --window: #11161f;
-    --window-border: rgba(255, 255, 255, .07);
-    --shadow: 0 40px 90px -30px rgba(0, 0, 0, .8), 0 12px 30px -12px rgba(0, 0, 0, .6);
-    --titlebar: #161c27;
-    --term: #0d121a;
-    --term-ink: #dbe3ee;
-    --term-dim: #5f6f86;
+    --bg: #0d0e12;
+    --ink: #eef0f4;
+    --muted: #9aa0ab;
+    --rule: #23262e;
+    --term: #14161b;
+    --term-border: #23262e;
+    --term-ink: #d8dce4;
+    --dim: #5d636e;
     --ok: #4ade80;
-    --num: #d3a6ff;
-    --pill: #1a2230;
-    --pill-ink: #cbd5e1;
-    --dist: #1c1830;
-    --dist-border: #3b2f66;
+    --num: #8f9bff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 1600px; height: 900px; overflow: hidden; }
-  body {
-    font-family: Inter, "Segoe UI", sans-serif;
-    color: var(--ink);
-    background:
-      radial-gradient(900px 600px at 88% 8%, var(--glow), transparent 60%),
-      radial-gradient(700px 500px at 10% 100%, var(--glow-2), transparent 65%),
-      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
-      var(--bg);
-    position: relative;
-  }
+  body { background: var(--bg); color: var(--ink); font-family: Inter, "Segoe UI", sans-serif; position: relative; }
 
-  /* Left column */
-  .intro { position: absolute; left: 96px; top: 150px; width: 680px; }
-  .eyebrow {
-    display: flex; align-items: center; gap: 14px;
-    font-size: 17px; font-weight: 700; letter-spacing: .32em; color: var(--muted);
-  }
-  .eyebrow .dot { width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #3245ff, #bc52ee); box-shadow: 0 0 0 6px rgba(118, 76, 247, .18); }
-  h1 { margin-top: 30px; font-weight: 900; letter-spacing: -.035em; line-height: .95; }
-  h1 .top { display: block; font-size: 92px; }
-  h1 .bottom {
-    display: block; font-size: 112px;
-    /* astro.build's brand gradient (2026): blue-violet to purple */
-    background: linear-gradient(83deg, #3245ff 0%, #bc52ee 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    padding-bottom: 6px;
-  }
-  .tagline { margin-top: 34px; font-size: 27px; line-height: 1.5; color: var(--muted); font-weight: 400; }
-  .tagline strong { color: var(--ink); font-weight: 600; }
-  .chips { margin-top: 38px; display: flex; gap: 12px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
-    padding: 12px 18px; border-radius: 999px;
-    background: var(--chip-bg); border: 1px solid var(--chip-border);
-    font-size: 17px; font-weight: 600;
-  }
-  .chip i { font-style: normal; color: var(--accent); font-weight: 800; }
-  .install { margin-top: 40px; font-family: "JetBrains Mono", monospace; font-size: 20px; color: var(--muted); }
-  .install b { color: var(--accent); font-weight: 500; margin-right: 12px; }
+  /* astro.build's brand gradient, once: a bar along the top edge. */
+  .bar { position: absolute; inset: 0 0 auto 0; height: 10px; background: linear-gradient(90deg, #3245ff, #bc52ee); }
 
-  /* Terminal window */
-  .stage { position: absolute; left: 820px; top: 130px; perspective: 2200px; }
-  .window {
-    width: 880px; height: 640px;
-    background: var(--window); border: 1px solid var(--window-border);
-    border-radius: 22px; overflow: hidden;
-    box-shadow: var(--shadow);
-    transform: rotateY(-9deg) rotateX(3deg);
-    transform-origin: left center;
-    display: grid; grid-template-rows: 56px auto 1fr;
+  .intro { position: absolute; left: 110px; top: 50%; transform: translateY(-50%); width: 610px; }
+  h1 {
+    font-family: "JetBrains Mono", monospace; font-weight: 700; white-space: nowrap;
+    font-size: 56px; letter-spacing: -.035em; line-height: 1.05;
   }
-  .titlebar {
-    display: flex; align-items: center; gap: 12px; padding: 0 22px;
-    background: var(--titlebar); border-bottom: 1px solid var(--window-border);
-    font-weight: 700; font-size: 18px;
+  .lead { margin-top: 36px; font-size: 28px; line-height: 1.45; color: var(--muted); }
+  .install {
+    margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace; font-size: 22px; color: var(--muted);
   }
-  .lights { display: flex; gap: 9px; margin-right: 10px; }
-  .lights span { width: 14px; height: 14px; border-radius: 50%; }
-  .titlebar small { color: var(--faint); font-weight: 500; font-size: 15px; margin-left: 6px; }
+  .install b { color: var(--ink); font-weight: 500; }
 
-  /* en / pl / de → dist/ */
-  .flow {
-    display: flex; align-items: center; gap: 16px; padding: 22px 30px;
-    background: var(--term); border-bottom: 1px solid var(--window-border);
-    font-family: "JetBrains Mono", monospace;
+  .term {
+    position: absolute; left: 790px; top: 50%; transform: translateY(-50%); width: 700px;
+    background: var(--term); border: 1px solid var(--term-border); border-radius: 12px;
+    font-family: "JetBrains Mono", monospace; font-size: 18px; line-height: 1.85;
+    color: var(--term-ink); padding: 30px 36px; white-space: pre;
   }
-  .targets { display: flex; gap: 10px; }
-  .target {
-    padding: 9px 16px; border-radius: 10px; background: var(--pill); color: var(--pill-ink);
-    font-size: 16px; font-weight: 600;
-  }
-  .target small { color: var(--term-dim); font-weight: 500; margin-left: 8px; font-size: 13px; }
-  .arrow { color: var(--term-dim); font-size: 22px; }
-  .dist {
-    padding: 9px 18px; border-radius: 10px; background: var(--dist); border: 1px solid var(--dist-border);
-    color: var(--num); font-weight: 600; font-size: 16px;
-  }
-
-  .log {
-    background: var(--term); color: var(--term-ink);
-    font-family: "JetBrains Mono", monospace; font-size: 17px; line-height: 1.8;
-    padding: 22px 30px; white-space: pre; overflow: hidden;
-  }
-  .log .p { color: var(--accent); }
-  .log .d { color: var(--term-dim); }
-  .log .ok { color: var(--ok); font-weight: 600; }
-  .log .n { color: var(--num); font-weight: 600; }
+  .term .d { color: var(--dim); }
+  .term .ok { color: var(--ok); font-weight: 700; }
+  .term .n { color: var(--num); font-weight: 500; }
 </style>
 </head>
 <body>
+  <div class="bar"></div>
+
   <section class="intro">
-    <div class="eyebrow"><span class="dot"></span>ASTRO · OPEN SOURCE</div>
-    <h1><span class="top">Astro</span><span class="bottom">Split Build</span></h1>
-    <p class="tagline">Build a big multi-locale site <strong>one locale at a time</strong>, merge the builds, and fail on <strong>broken bundles, links and hreflang</strong>.</p>
-    <div class="chips">
-      <span class="chip"><i>›</i> One locale per build</span>
-      <span class="chip"><i>›</i> One-pass checks</span>
-      <span class="chip"><i>›</i> Zero deps</span>
-    </div>
-    <p class="install"><b>$</b>npm i -D astro-split-build</p>
+    <h1>astro-split-build</h1>
+    <p class="lead">Builds a large multi-locale Astro site one locale at a time, merges the builds into one dist/, and fails on missing bundles, dead links and broken hreflang.</p>
+    <p class="install"><b>npm i -D astro-split-build</b></p>
   </section>
 
-  <div class="stage">
-    <div class="window">
-      <div class="titlebar">
-        <div class="lights"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div>
-        Terminal <small>npm run build</small>
-      </div>
-      <div class="flow">
-        <div class="targets">
-          <span class="target">en<small>/</small></span>
-          <span class="target">pl<small>/pl/</small></span>
-          <span class="target">de<small>/de/</small></span>
-        </div>
-        <span class="arrow">→</span>
-        <span class="dist">dist/</span>
-      </div>
-<div class="log"><span class="p">$</span> astro-split-build --config split-build.config.js
+<div class="term"><span class="d">$</span> astro-split-build
 <span class="d">Building EN …</span> <span class="ok">✓</span> <span class="n">59.4s</span>
 <span class="d">Building PL …</span> <span class="ok">✓</span> <span class="n">59.5s</span>
 <span class="d">Building DE …</span> <span class="ok">✓</span> <span class="n">55.0s</span>
-<span class="d">Merging builds into dist/ …</span> <span class="ok">✓</span>
-<span class="d">Checking pages (3 checks, one pass) …</span>
-<span class="ok">✓</span> Asset references  <span class="n">122,958</span> <span class="d">across</span> <span class="n">8,617</span> <span class="d">pages</span>
-<span class="ok">✓</span> Internal links    <span class="n">2,833,064</span> <span class="d">resolve</span>
+<span class="d">Merging into dist/ …</span> <span class="ok">✓</span>
+
+<span class="ok">✓</span> Asset references  <span class="n">122,958</span>
+<span class="ok">✓</span> Internal links    <span class="n">2,833,064</span>
 <span class="ok">✓</span> hreflang          <span class="d">reciprocal</span>
 <span class="ok">✓</span> Locale leaks      <span class="d">none</span>
 
-<span class="ok">✓</span> Split build completed in <span class="n">173.9s</span></div>
-    </div>
-  </div>
+<span class="d">8,617 pages · 3 locales · 173.9s</span></div>
 
   <script>
     if (new URLSearchParams(location.search).get('theme') === 'dark') {
