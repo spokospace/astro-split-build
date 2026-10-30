@@ -4,7 +4,8 @@ export default defineConfig({
   site: 'https://example.com',
   // SITE_BASE=/docs serves the site under /docs/; split-build.config.js
   // passes the same base to its checks.
-  base: process.env.SITE_BASE,
+  // An empty SITE_BASE (CI's "no base" job) means no base, like an unset one.
+  base: process.env.SITE_BASE || undefined,
   // English at the root, the other locales under /pl/ and /de/: the layout
   // split-build.config.js describes with one root target and two subdirs.
   i18n: {
