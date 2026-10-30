@@ -30,7 +30,7 @@ export default {
   verifyLinks: { site: 'https://example.com' },
   pageChecks: [{ name: 'Page titles', check: everyPageHasATitle }],
   // The same base as astro.config.mjs, for every check.
-  base: process.env.SITE_BASE,
+  base: process.env.SITE_BASE || undefined,
   // A locale whose build produced no pages fails the run instead of warning.
   strict: true,
 };
