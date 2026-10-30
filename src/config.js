@@ -118,6 +118,11 @@ export function normalizeOptions(options) {
     verifyLinks = { site, redirects };
   }
 
+  const { base } = options;
+  if (base !== undefined && (typeof base !== 'string' || !base.startsWith('/'))) {
+    throw invalid('base must be a path starting with "/" (Astro\'s base, e.g. "/docs")');
+  }
+
   const pageChecks = options.pageChecks ?? [];
   const pageCheckOk = (entry) => typeof entry?.name === 'string' && entry.name !== '' && typeof entry.check === 'function';
   if (!Array.isArray(pageChecks) || !pageChecks.every(pageCheckOk)) {
@@ -142,6 +147,7 @@ export function normalizeOptions(options) {
     sharedDirs,
     verifyAssets,
     verifyLinks,
+    base,
     pageChecks,
     hooks,
     strict: options.strict === true,

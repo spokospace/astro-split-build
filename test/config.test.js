@@ -66,7 +66,7 @@ test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
 });
 
-test('validates command, env, sharedDirs, verifyAssets, verifyLinks, pageChecks and hooks', () => {
+test('validates command, env, sharedDirs, verifyAssets, verifyLinks, base, pageChecks and hooks', () => {
   rejects({ pageChecks: {} }, /pageChecks/);
   rejects({ pageChecks: [{ name: '', check: () => ({}) }] }, /pageChecks/);
   rejects({ pageChecks: [{ name: 'x', check: 'nope' }] }, /pageChecks/);
@@ -76,6 +76,8 @@ test('validates command, env, sharedDirs, verifyAssets, verifyLinks, pageChecks 
   rejects({ verifyAssets: { dir: '' } }, /verifyAssets/);
   rejects({ verifyLinks: { site: 'catalog.polo.blue' } }, /verifyLinks/);
   assert.deepEqual(normalizeOptions({ ...valid, verifyLinks: { site: 'https://x.dev' } }).verifyLinks, { site: 'https://x.dev', redirects: undefined });
+  assert.equal(normalizeOptions({ ...valid, base: '/docs' }).base, '/docs');
+  rejects({ base: 'docs' }, /base/);
   rejects({ verifyLinks: { site: 'https://x.dev', redirects: {} } }, /verifyLinks/);
   rejects({ hooks: { before: 'nope' } }, /hooks\.before/);
 });

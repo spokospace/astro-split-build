@@ -1,0 +1,41 @@
+---
+import { pagesIn, translationsOf, urlOf } from '../pages.js';
+
+const { page } = Astro.props;
+const alternates = translationsOf(page);
+---
+
+<html lang={page.locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{page.title}</title>
+    <link rel="canonical" href={new URL(urlOf(page), Astro.site)} />
+    {alternates.map((alt) => <link rel="alternate" hreflang={alt.locale} href={new URL(urlOf(alt), Astro.site)} />)}
+  </head>
+  <body>
+    <nav>
+      {pagesIn(page.locale).map((link) => <a href={urlOf(link)}>{link.title}</a>)}
+    </nav>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      {alternates.map((alt) => <a href={urlOf(alt)} hreflang={alt.locale}>{alt.locale.toUpperCase()}</a>)}
+    </footer>
+  </body>
+</html>
+
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 40rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  nav,
+  footer {
+    display: flex;
+    gap: 1rem;
+  }
+</style>

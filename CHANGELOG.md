@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
 
-- The split build core is extracted from catalog.polo.blue's `scripts/build-split.js`: sequential target builds, FS-race-safe save and merge, shared asset dirs merged from every target, and a broken asset reference check. It ships with the `splitBuild()` API, the `astro-split-build` CLI and node:test coverage.
-- The page checks read the merged output in one pass: `scanPages()` lists `outDir` once and reads each page once for every check. The asset reference and internal link checks are page checks (`assetRefsCheck`, `internalLinksCheck`), and the new `pageChecks` option adds your own, failing with `PAGE_CHECK_FAILED`.
-- The internal link check no longer keeps every page in memory during the scan: hreflang and href keys it stores were substrings that pinned their whole page (catalog.polo.blue: 2.1 GB RSS down to 118 MB).
+First public release.
+
+- `splitBuild()` and the `astro-split-build` CLI build each target in turn, save the builds, merge them into one `outDir` (the root target whole, the others' `subdir` only, `sharedDirs` from every target) and survive the filesystem races of shared hosting (retried copies and removals).
+- One pass over the merged pages runs every check: `verifyAssets` (every `/<dir>/<file>` reference exists), `verifyLinks` (internal links, canonicals and hreflang alternates resolve, alternates are reciprocal) and your own `pageChecks`. `scanPages()`, `assetRefsCheck`, `internalLinksCheck`, `verifyAssetRefs` and `verifyInternalLinks` run the same checks on a finished build.
+- `base` checks a site served under a base path (Astro's `base`), where links and asset references carry the base and `outDir` doesn't. Every page check sees it as `basePath`.
+- An asset reference is a root-relative URL path ending in `/<dir>/<file>`: `https://cdn.example/_astro/…` is another host's file and is not checked.
+- `strict` fails the run when a non-root target produced no `subdir`.
+- `examples/astro-i18n`: a three-locale Astro site built with the package, with and without a base.
+
+Extracted from [catalog.polo.blue](https://catalog.polo.blue), whose production builds (8,600+ pages in three locales) run on it.

@@ -1,0 +1,15 @@
+{
+  "name": "astro-split-build-example-i18n",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro-split-build --config split-build.config.js"
+  },
+  "dependencies": {
+    "astro": "7.4.4"
+  },
+  "devDependencies": {
+    "astro-split-build": "file:../.."
+  }
+}

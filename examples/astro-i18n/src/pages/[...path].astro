@@ -1,0 +1,20 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { pages } from '../pages.js';
+
+export function getStaticPaths() {
+  // Set by split-build.config.js for each target. Without it (`astro dev`,
+  // a plain `astro build`) every locale is rendered.
+  const locale = process.env.BUILD_LOCALE;
+  return pages
+    .filter((page) => !locale || page.locale === locale)
+    .map((page) => ({ params: { path: page.path || undefined }, props: { page } }));
+}
+
+const { page } = Astro.props;
+---
+
+<Layout page={page}>
+  <h1>{page.title}</h1>
+  <p>{page.body}</p>
+</Layout>

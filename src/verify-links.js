@@ -15,8 +15,7 @@
 // fragment are ignored.
 
 import { scanPages } from './scan-pages.js';
-import { detach } from './text.js';
-import { toPosixPath } from './walk.js';
+import { detach, trimSlashes } from './text.js';
 
 const SKIPPED_SCHEMES = /^(?:mailto|tel|sms|javascript|data|blob):/i;
 
@@ -49,8 +48,11 @@ const parseAttrs = (source) => {
   return attrs;
 };
 
-/** The URL path a built HTML file is served at: "a/b/index.html" → "/a/b/". */
-export const pageUrlPath = (file) => `/${file}`.replace(/(^|\/)index\.html$/, '$1');
+/**
+ * The URL path a built HTML file is served at: "a/b/index.html" → "/a/b/", or
+ * "/docs/a/b/" under the base "/docs/".
+ */
+export const pageUrlPath = (file, basePath = '/') => `${basePath}${file}`.replace(/(^|\/)index\.html$/, '$1');
 
 /**
  * The links of one page: every `<a href>`, the canonical, and the hreflang
@@ -84,10 +86,14 @@ export function extractLinks(html) {
  * The internal link check as a page check for `scanPages`.
  * @param {{ site: string, assetsDir?: string, redirects?: Map<string, string> }} options
  *   `site` is the production origin (Astro's `site`); absolute links on it are
- *   internal. `redirects` maps URL paths the server redirects (with or without
- *   the trailing slash) to their targets: an `<a>` to one resolves when the
+ *   internal. The scan's `basePath` (Astro's `base`, "/" by default) is where
+ *   outDir is served: links carry it, and a same-origin link outside it is
+ *   another site's and skipped. `redirects` maps URL
+ *   paths the server redirects (as served, with `base`; with or without the
+ *   trailing slash) to their targets: an `<a>` to one resolves when the
  *   redirect ends on a built page or another origin. A canonical or an
- *   hreflang alternate must name the built page itself.
+ *   hreflang alternate must name the built page itself. Paths in the result
+ *   are as served, with `base`.
  * @returns {import('./scan-pages.js').PageCheck} finishing with {
  *   linkCount: number,
  *   pageCount: number,
@@ -100,13 +106,19 @@ export function extractLinks(html) {
  *   alternates whose target exists but does not list the page back;
  *   `conflicting` lists pages that give one hreflang two different URLs.
  */
-export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) => ({ files, pages }) => {
+export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) => ({ files, pages, basePath }) => {
   const origin = new URL(site).origin;
-  const assetsPrefix = assetsDir ? `/${toPosixPath(assetsDir).replace(/^\/+|\/+$/g, '')}/` : null;
+  const assetsPrefix = assetsDir ? `${basePath}${trimSlashes(assetsDir)}/` : null;
+  // "/docs" names the base itself, like "/docs/".
+  const baseItself = basePath.slice(0, -1);
+  const underBase = (path) => basePath === '/' || path.startsWith(basePath) || path === baseItself;
 
-  /** The output file a URL path is served from, or null. A Set lookup, not a stat per link. */
+  /**
+   * The output file a URL path (from toInternalPath, so under the base) is
+   * served from, or null. A Set lookup, not a stat per link.
+   */
   const resolveFile = (path) => {
-    const bare = path.replace(/^\/+/, '');
+    const bare = path.slice(basePath.length).replace(/^\/+/, '');
     if (bare === '' || bare.endsWith('/')) return files.has(`${bare}index.html`) ? `${bare}index.html` : null;
     for (const candidate of [bare, `${bare}.html`, `${bare}/index.html`]) {
       if (files.has(candidate)) return candidate;
@@ -131,6 +143,7 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
     } catch {
       path = url.pathname;
     }
+    if (!underBase(path)) return null;
     if (assetsPrefix && path.startsWith(assetsPrefix)) return null;
     return path;
   };
@@ -177,7 +190,7 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
   let linkCount = 0;
 
   const page = (file, html) => {
-    const pagePath = pageUrlPath(file);
+    const pagePath = pageUrlPath(file, basePath);
     const pageUrl = new URL(pagePath, origin);
     const cluster = new Map();
 
@@ -199,7 +212,7 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
       // Keyed by the page the alternate resolves to, so "/x" and "/x/" name
       // the same page in the reciprocity pass.
       const targetFile = resolveFile(path);
-      const target = targetFile ? pageUrlPath(targetFile) : path;
+      const target = targetFile ? pageUrlPath(targetFile, basePath) : path;
       const previous = cluster.get(hreflang);
       if (previous === undefined) {
         // Clusters live until the reciprocity pass: a key cut from the page
@@ -235,10 +248,10 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
 /**
  * Check the internal links of every page of `outDir` on their own; see
  * `internalLinksCheck` for the options and the result.
- * @param {{ outDir: string, site: string, assetsDir?: string, redirects?: Map<string, string> }} options
+ * @param {{ outDir: string, base?: string, site: string, assetsDir?: string, redirects?: Map<string, string> }} options
  */
-export function verifyInternalLinks({ outDir, ...options }) {
-  const [result] = scanPages({ outDir, checks: [internalLinksCheck(options)] });
+export function verifyInternalLinks({ outDir, base, ...options }) {
+  const [result] = scanPages({ outDir, base, checks: [internalLinksCheck(options)] });
   return result;
 }
 

@@ -62,6 +62,7 @@ export { walkDist } from './walk.js';
  * @property {string[]} [sharedDirs] content-hashed dirs merged from every target
  * @property {false | { dir: string }} [verifyAssets]
  * @property {false | { site: string, redirects?: Map<string, string> | (() => Map<string, string>) }} [verifyLinks]
+ * @property {string} [base] the path the site is served under (Astro's `base`, e.g. "/docs"); every page check sees it
  * @property {{ name: string, check: import('./scan-pages.js').PageCheck }[]} [pageChecks] run in the
  *   same pass over the merged pages; each check's finish() returns `{ problems: string[], summary: string }`
  * @property {{ before?: Function, afterTarget?: Function, afterMerge?: Function }} [hooks]
@@ -264,7 +265,7 @@ export async function splitBuild(options) {
 
   if (entries.length > 0) {
     info(`\n🔍 Checking pages (${entries.length} check(s), one pass)...`);
-    const results = scanPages({ outDir: o.outDir, checks: entries.map(({ check }) => check) });
+    const results = scanPages({ outDir: o.outDir, base: o.base, checks: entries.map(({ check }) => check) });
     entries.forEach(({ report }, index) => report(results[index]));
   }
 

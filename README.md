@@ -4,12 +4,22 @@ Build a large multi-locale static site **one target at a time**, merge the outpu
 
 ## The problem
 
-A single `astro build` of every locale of a big site (catalog.polo.blue has 19,000+ pages in three languages) can run out of memory or hit `EMFILE: too many open files`, both on shared hosting and on Windows. Building each locale separately keeps every run small. But a naive merge of the outputs has two traps:
+A single `astro build` of every locale of a big site (catalog.polo.blue has 8,600+ pages, 2.3 GB of HTML, in three languages) can run out of memory or hit `EMFILE: too many open files`, both on shared hosting and on Windows. Building each locale separately keeps every run small. But a naive merge of the outputs has two traps:
 
 1. **Lost bundles.** Each build emits its own content-hashed JS/CSS. If you keep only `pl/` from the Polish build, any chunk that hashed differently there is gone. The page still returns 200, its island just never hydrates. This happened in production.
 2. **Flaky filesystems.** On NFS-like shared hosting, a recursive `rm` races (`ENOTEMPTY`), and a large copy is not immediately visible to the next `readdir` (`ENOENT` mid-iteration).
 
 This package does the sequencing, the merge, the retries and the reference checks. Your build tool still does the rendering.
+
+Small sites don't need it: if one `astro build` of every locale fits in memory, keep it. The checks are useful on their own, though. `verifyAssetRefs`, `verifyInternalLinks` and `scanPages` run against any finished static build (see [Lower-level exports](#lower-level-exports)).
+
+## Install
+
+```bash
+npm install --save-dev astro-split-build
+```
+
+It needs Node 20 or newer and has no dependencies. The version is 0.x: the API can still change between minor versions, and the [changelog](CHANGELOG.md) says how.
 
 ## Usage
 
@@ -32,6 +42,8 @@ export default {
 ```bash
 astro-split-build --config split-build.config.js
 ```
+
+Without `--config`, the CLI loads `split-build.config.js` from the current directory. It exits 0 when every target built and every check passed, 1 otherwise. Put it in your `build` script.
 
 Or from your own script:
 
@@ -58,7 +70,11 @@ export async function getStaticPaths() {
 ---
 ```
 
-Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astro` unless you changed it).
+The merge expects the layout of Astro's i18n routing with `prefixDefaultLocale: false`: the default locale at the root of `dist/`, every other locale under its own prefix (`dist/pl/`, `dist/de/`). The root target is the default locale; each other target's `subdir` is its prefix.
+
+Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astro` unless you changed it). If the site is served under a `base` (for example `/docs`), set the same `base` in the config.
+
+[`examples/astro-i18n`](examples/astro-i18n) is a complete six-page site in three locales, with a custom page check. It also builds under a base (`SITE_BASE=/docs npm run build`).
 
 ## Options
 
@@ -73,6 +89,7 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 | `sharedDirs` | `[]` | Content-hashed directories merged from every target. A filename collision means identical bytes, so overwriting is safe. |
 | `verifyAssets` | `false` | `{ dir }` checks every `/<dir>/<file>` reference in every `.html` file of the merged output. |
 | `verifyLinks` | `false` | `{ site, redirects? }` checks every internal `<a href>`, `<link rel=canonical>` and `<link rel=alternate hreflang>` of the merged output: each must resolve to a file in `outDir` (`/x/` → `x/index.html`, also `x.html` and direct files), hreflang alternates must link back, and one page may not give one hreflang two URLs. Internal means root- or page-relative, or absolute on `site`; anchors, queries, other origins, `mailto:`-style schemes and `verifyAssets.dir` are skipped. `redirects` (a `Map` of old path → target, or a function returning one, called after the merge) lets an `<a>` resolve through a server-side redirect when the redirect ends on a built page; a canonical or alternate must name the built page itself. |
+| `base` | `/` | The path the site is served under (Astro's `base`, e.g. `/docs`). Links and asset references carry it, `outDir` doesn't: `/docs/pl/` is `outDir/pl/index.html`. An asset reference without it is reported missing, a same-origin link outside it is skipped as another site's, and redirect and reported paths include it. Page checks get it as `basePath` (`/docs/`). |
 | `pageChecks` | `[]` | `{ name, check }[]`: your own checks of the merged pages, run in the same pass as `verifyAssets` and `verifyLinks`. See [Page checks](#page-checks). |
 | `hooks.before(ctx)` | none | Before anything is wiped, for example to generate images the builds read. |
 | `hooks.afterTarget(target, ctx)` | none | After a target's build, before it is saved. `ctx.targetDir` is `outDir` for the root target and `outDir/<subdir>` otherwise. What you write there is part of the saved build, for example a Pagefind index. |
@@ -91,8 +108,9 @@ After the merge, `verifyAssets`, `verifyLinks` and every entry of `pageChecks` r
 A check is a function of the scan's context that returns what to do with each page and what to report at the end:
 
 ```js
-const noLoremIpsum = ({ outDir, files, pages }) => {
-  // files: every output file, relative to outDir with forward slashes; pages: the sorted .html ones
+const noLoremIpsum = ({ outDir, files, pages, basePath }) => {
+  // files: every output file, relative to outDir with forward slashes; pages: the sorted .html ones;
+  // basePath: the `base` option with both slashes ("/" or "/docs/")
   const problems = [];
   return {
     page(file, html) {

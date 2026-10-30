@@ -174,6 +174,32 @@ test('markup inside an attribute value is not a link of the page', () => {
   assert.deepEqual(links, [{ href: '/real/', kind: 'a' }]);
 });
 
+test('under a base, links carry the base and resolve to files at the top of outDir', (t) => {
+  // Astro's base: "/docs" serves dist/pl/index.html at /docs/pl/.
+  const result = verify(
+    t,
+    {
+      'index.html': page(
+        `<link rel="canonical" href="${SITE}/docs/">${alternates({ en: `${SITE}/docs/`, pl: `${SITE}/docs/pl/` })}`,
+        '<a href="/docs/pl/">pl</a><a href="/docs">home</a><a href="about/">about</a><a href="/blog/">another site</a><a href="/docs/_assets/App.js">asset</a>'
+      ),
+      'pl/index.html': page(alternates({ en: `${SITE}/docs/`, pl: `${SITE}/docs/pl/` }), '<a href="/docs/gone/">x</a>'),
+      'about/index.html': page(''),
+    },
+    { base: '/docs' }
+  );
+  assert.deepEqual([...result.missing.keys()], ['/docs/gone/']);
+  assert.deepEqual(result.missing.get('/docs/gone/').pages, ['/docs/pl/']);
+  assert.deepEqual(result.nonReciprocal, []);
+  // canonical + 2 alternates + 3 links on the home page, 2 alternates + 1 link on /pl/.
+  assert.equal(result.linkCount, 9);
+});
+
+test('without the base, the same links all miss', (t) => {
+  const result = verify(t, { 'index.html': page('', '<a href="/docs/pl/">pl</a>'), 'pl/index.html': page('') });
+  assert.deepEqual([...result.missing.keys()], ['/docs/pl/']);
+});
+
 test('a missing outDir is OUT_DIR_MISSING', (t) => {
   const { dir, cleanup } = tempProject();
   t.after(cleanup);

@@ -12,7 +12,7 @@
 // `missing` as a hard failure.
 
 import { scanPages } from './scan-pages.js';
-import { escapeRegExp } from './text.js';
+import { escapeRegExp, trimSlashes } from './text.js';
 
 /**
  * The asset reference check as a page check for `scanPages`.
@@ -21,12 +21,19 @@ import { escapeRegExp } from './text.js';
  * @returns {import('./scan-pages.js').PageCheck} finishing with
  *   `{ refCount, pageCount, missing: Map<string, string> }`; `missing` maps each
  *   unresolved reference to the first page (as a URL path) that pointed at it.
+ *   Under a base ("/docs/"), a reference must carry it: "/_astro/x.js" would
+ *   404 there, so it is missing even when dist/_astro/x.js exists.
  */
-export const assetRefsCheck = ({ dir }) => ({ files, pages }) => {
-  // src/href values pointing into the assets directory, with or without a
-  // leading slash, ignoring any ?query the runtime appends (Astro retries a
-  // failed island import as `...js?astro-retry=1`).
-  const refPattern = new RegExp(`/${escapeRegExp(dir)}/[A-Za-z0-9._-]+\\.[A-Za-z0-9]+`, 'g');
+export const assetRefsCheck = ({ dir }) => ({ files, pages, basePath }) => {
+  // A root-relative URL path that ends in <dir>/<file> ("/_astro/App.js",
+  // "/docs/_astro/App.js"), ignoring any ?query the runtime appends (Astro
+  // retries a failed island import as `...js?astro-retry=1`). It must start
+  // the value: the lookbehind skips "https://cdn.example/_astro/…" and
+  // "//cdn.example/_astro/…", which are another host's files.
+  const refPattern = new RegExp(
+    `(?<![\\w:./-])/(?:[\\w.~%-]+/)*?${escapeRegExp(trimSlashes(dir))}/[A-Za-z0-9._-]+\\.[A-Za-z0-9]+`,
+    'g'
+  );
 
   // One asset is referenced by hundreds of pages; remember the first page that
   // pointed at each missing file so the report names a page to reproduce with,
@@ -38,7 +45,8 @@ export const assetRefsCheck = ({ dir }) => ({ files, pages }) => {
     page(file, html) {
       for (const [ref] of html.matchAll(refPattern)) {
         refCount++;
-        if (!files.has(ref.slice(1)) && !missing.has(ref)) missing.set(ref, file);
+        if (missing.has(ref)) continue;
+        if (!ref.startsWith(basePath) || !files.has(ref.slice(basePath.length))) missing.set(ref, file);
       }
     },
     finish: () => ({ refCount, pageCount: pages.length, missing }),
@@ -48,10 +56,10 @@ export const assetRefsCheck = ({ dir }) => ({ files, pages }) => {
 /**
  * Check the asset references of every page of `outDir` on their own; see
  * `assetRefsCheck` for the result.
- * @param {{ outDir: string, dir: string }} options
+ * @param {{ outDir: string, dir: string, base?: string }} options
  */
-export function verifyAssetRefs({ outDir, dir }) {
-  const [result] = scanPages({ outDir, checks: [assetRefsCheck({ dir })] });
+export function verifyAssetRefs({ outDir, dir, base }) {
+  const [result] = scanPages({ outDir, base, checks: [assetRefsCheck({ dir })] });
   return result;
 }
 

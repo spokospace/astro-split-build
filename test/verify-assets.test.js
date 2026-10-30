@@ -35,6 +35,30 @@ test('a missing reference is reported once, with the first page as a URL path', 
   assert.match(formatMissingRefs(missing), /✗ \/_spoko\/Tire\.WFBO\.js\n {6}referenced by \/pl\//);
 });
 
+test('another host\'s asset is not a reference into outDir', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(dir, {
+    'index.html': '<script src="https://cdn.example/_spoko/App.js"></script><link href="//cdn.example/_spoko/a.css">',
+  });
+  const result = verifyAssetRefs({ outDir: dir, dir: '_spoko' });
+  assert.equal(result.refCount, 0);
+});
+
+test('under a base, a reference must carry it', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(dir, {
+    'index.html': '<script src="/docs/_spoko/App.js"></script><link href="/_spoko/main.css">',
+    '_spoko/App.js': '',
+    '_spoko/main.css': '',
+  });
+  const { refCount, missing } = verifyAssetRefs({ outDir: dir, dir: '_spoko', base: '/docs' });
+  assert.equal(refCount, 2);
+  // Served under /docs/, "/_spoko/main.css" is another path and 404s.
+  assert.deepEqual([...missing.keys()], ['/_spoko/main.css']);
+});
+
 test('a missing outDir is OUT_DIR_MISSING', (t) => {
   const { dir, cleanup } = tempProject();
   t.after(cleanup);

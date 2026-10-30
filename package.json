@@ -1,8 +1,32 @@
 {
   "name": "astro-split-build",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Build a large multi-locale static site one target at a time, merge the outputs into one directory, and fail on broken asset references.",
+  "version": "0.1.0",
+  "description": "Build a large multi-locale static site one target at a time, merge the outputs into one directory, and fail on broken asset references, broken internal links and your own page checks.",
+  "keywords": [
+    "astro",
+    "i18n",
+    "static-site",
+    "build",
+    "multilingual",
+    "locales",
+    "out-of-memory",
+    "broken-links",
+    "hreflang"
+  ],
+  "homepage": "https://github.com/spokospace/astro-split-build#readme",
+  "bugs": {
+    "url": "https://github.com/spokospace/astro-split-build/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spokospace/astro-split-build.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "spokospace",
+    "email": "szymon@spoko.space",
+    "url": "https://spoko.space"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.js"
@@ -11,13 +35,13 @@
     "astro-split-build": "./src/cli.js"
   },
   "files": [
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\""
-  },
-  "license": "MIT"
+  }
 }

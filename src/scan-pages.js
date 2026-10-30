@@ -9,6 +9,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join, relative } from 'path';
 import { SplitBuildError } from './errors.js';
+import { toBasePath } from './text.js';
 import { toPosixPath, walkDist } from './walk.js';
 
 /**
@@ -16,6 +17,8 @@ import { toPosixPath, walkDist } from './walk.js';
  * @property {string} outDir
  * @property {Set<string>} files every output file, as a forward-slash path relative to outDir
  * @property {string[]} pages the HTML files among `files`, sorted
+ * @property {string} basePath the URL path outDir is served at, with both
+ *   slashes: "/" by default, "/docs/" for Astro's `base: '/docs'`
  */
 
 /**
@@ -27,10 +30,11 @@ import { toPosixPath, walkDist } from './walk.js';
 
 /**
  * Run `checks` over every HTML page of `outDir` in one pass.
- * @param {{ outDir: string, checks: PageCheck[] }} options
+ * @param {{ outDir: string, base?: string, checks: PageCheck[] }} options
+ *   `base` is the path the site is served under (Astro's `base`).
  * @returns {any[]} each check's `finish()` result, in the order of `checks`
  */
-export function scanPages({ outDir, checks }) {
+export function scanPages({ outDir, base, checks }) {
   if (!existsSync(outDir)) {
     throw new SplitBuildError('OUT_DIR_MISSING', `${outDir} not found — run a build first.`, { outDir });
   }
@@ -45,7 +49,8 @@ export function scanPages({ outDir, checks }) {
   // Sorted, so reports read the same on every filesystem.
   const pages = [...files].filter((file) => file.endsWith('.html')).sort();
 
-  const running = checks.map((check) => check({ outDir, files, pages }));
+  const basePath = toBasePath(base);
+  const running = checks.map((check) => check({ outDir, files, pages, basePath }));
   for (const file of pages) {
     const html = readFileSync(join(outDir, file), 'utf8');
     for (const check of running) check.page(file, html);
