@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+      # No dependencies to install: the package and its tests use Node alone.
+      - run: npm test
+
+  example:
+    name: Example site (${{ matrix.base || 'no base' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ['', '/docs']
+    defaults:
+      run:
+        working-directory: examples/astro-i18n
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      # The example depends on the package by path (file:../..), so this
+      # builds a real Astro site with the code under review.
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          SITE_BASE: ${{ matrix.base }}

@@ -1,5 +1,7 @@
 # astro-split-build
 
+[![npm](https://img.shields.io/npm/v/astro-split-build)](https://www.npmjs.com/package/astro-split-build) [![CI](https://github.com/spokospace/astro-split-build/actions/workflows/ci.yml/badge.svg)](https://github.com/spokospace/astro-split-build/actions/workflows/ci.yml)
+
 Build a large multi-locale static site **one target at a time**, merge the outputs into one directory, and **fail the build if any page points at a bundle or a page that isn't there**.
 
 ## The problem

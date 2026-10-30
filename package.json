@@ -41,7 +41,11 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test test/*.test.js"
   }
 }
