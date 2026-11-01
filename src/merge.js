@@ -72,10 +72,10 @@ export function findDroppedFiles({ rootDir, buildDir, exclude = [] }) {
 }
 
 const describeDropped = (target, root, dropped) => {
-  const why = (reason) => (reason === 'missing' ? `${label(root)} has none` : `not the size of ${label(root)}'s`);
+  const why = (reason) => (reason === 'missing' ? `${label(root)} has none` : `${label(root)}'s copy, of another size, is kept`);
   const listed = dropped.slice(0, LISTED_DROPPED).map(({ file, reason }) => `${file} (${why(reason)})`);
   const more = dropped.length > LISTED_DROPPED ? `, and ${dropped.length - LISTED_DROPPED} more` : '';
-  return `${label(target)} build: ${dropped.length} file(s) outside ${target.subdir}/ are not in the merged output: ${listed.join(', ')}${more}`;
+  return `${label(target)} build: ${dropped.length} file(s) outside ${target.subdir}/ are dropped in the merge: ${listed.join(', ')}${more}`;
 };
 
 /**

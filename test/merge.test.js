@@ -108,7 +108,7 @@ test('a dropped file that differs from the root build, or that it lacks, warns, 
   writeTree(join(dir, 'tmp'), perBuildSitemaps);
   const lines = merge(dir, { quiet: true });
   assert.deepEqual(lines.warn, [
-    "⚠️  PL build: 2 file(s) outside pl/ are not in the merged output: rss.xml (EN has none), sitemap-0.xml (not the size of EN's)",
+    "⚠️  PL build: 2 file(s) outside pl/ are dropped in the merge: rss.xml (EN has none), sitemap-0.xml (EN's copy, of another size, is kept)",
     '   Generate such files after the merge (hooks.afterMerge), or list the ones dropped on purpose in ignoreDropped.',
   ]);
   // The 404 page differs in its bundle name only, the favicon not at all, the
