@@ -85,6 +85,8 @@ export { toPosixPath, walkDist } from './walk.js';
  * @property {string} [outDir] default "dist"; the command must write a fresh build here
  * @property {string} [tempDir] default ".build-temp"
  * @property {string[]} [sharedDirs] content-hashed dirs merged from every target
+ * @property {string[]} [ignoreDropped] files or dirs of a non-root build that the merge
+ *   drops on purpose: not reported when their size differs from the root build's copy or it has none
  * @property {false | { dir: string }} [verifyAssets]
  * @property {false | { site: string, redirects?: Map<string, string> | (() => Map<string, string>) }} [verifyLinks]
  * @property {string} [base] the path the site is served under (Astro's `base`, e.g. "/docs"); every page check sees it
@@ -95,7 +97,8 @@ export { toPosixPath, walkDist } from './walk.js';
  *   afterTarget?: (target: SplitBuildTarget, context: SplitBuildContext & { targetDir: string }) => void | Promise<void>,
  *   afterMerge?: (context: SplitBuildContext) => void | Promise<void>,
  * }} [hooks]
- * @property {boolean} [strict] a missing non-root subdir fails instead of warning
+ * @property {boolean} [strict] a missing non-root subdir, or a file the merge drops
+ *   (see ignoreDropped), fails instead of warning
  * @property {boolean} [quiet]
  * @property {number} [settleMs] pause after each save, for filesystems that lag
  * @property {Partial<SplitBuildLogger>} [logger] merged over console
@@ -218,6 +221,7 @@ export async function splitBuild(options) {
     outDir: o.outDir,
     outDirLabel: outLabel,
     sharedDirs: o.sharedDirs,
+    ignoreDropped: o.ignoreDropped,
     strict: o.strict,
     quiet,
     logger,

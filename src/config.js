@@ -8,6 +8,7 @@
 
 import { isAbsolute, normalize, relative, resolve } from 'path';
 import { SplitBuildError } from './errors.js';
+import { trimSlashes } from './text.js';
 import { toPosixPath } from './walk.js';
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -66,7 +67,7 @@ export function normalizeOptions(options) {
     if (!isContainedRelative(target.subdir)) {
       throw invalid(`target "${target.name}" needs a relative subdir (it is not the root target)`);
     }
-    const subdirKey = toPosixPath(normalize(target.subdir)).replace(/\/+$/, '').toLowerCase();
+    const subdirKey = trimSlashes(normalize(target.subdir)).toLowerCase();
     if (subdirs.has(subdirKey)) throw invalid(`two targets share the subdir "${target.subdir}"`);
     subdirs.add(subdirKey);
   }
@@ -98,6 +99,11 @@ export function normalizeOptions(options) {
   const sharedDirs = options.sharedDirs ?? [];
   if (!Array.isArray(sharedDirs) || !sharedDirs.every(isContainedRelative)) {
     throw invalid('sharedDirs must be an array of relative directory names');
+  }
+
+  const ignoreDropped = options.ignoreDropped ?? [];
+  if (!Array.isArray(ignoreDropped) || !ignoreDropped.every(isContainedRelative)) {
+    throw invalid('ignoreDropped must be an array of relative paths (a file or a directory of a build)');
   }
 
   let verifyAssets = options.verifyAssets ?? false;
@@ -146,6 +152,7 @@ export function normalizeOptions(options) {
     outDir,
     tempDir,
     sharedDirs,
+    ignoreDropped,
     verifyAssets,
     verifyLinks,
     base,

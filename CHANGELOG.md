@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- The merge reports what it drops. A file that a non-root build has outside its `subdir` and `sharedDirs`, and that the root build has no copy of the same size of, is lost in the merge: a per-build sitemap from `@astrojs/sitemap`, for example, left the merged site with the root locale's sitemap alone. Such files now warn (pages only when the root build has no such page), even in quiet mode. Comparing sizes takes 0.2 s on catalog.polo.blue's builds.
+- **`strict` fails on a dropped file** with `DROPPED_FILES` (`dropped` lists the files per target), before anything is copied. A strict run that passed before can fail now: list the files a build emits only to have them dropped in the new `ignoreDropped` option.
+
 ## 0.2.0
 
 - TypeScript declarations (`types/`), generated from the JSDoc on publish. The config, the results and the page checks are typed: `SplitBuildOptions`, `PageCheck<Result>`, `PageCheckReport`, `AssetRefsResult`, `InternalLinksResult`, `SplitBuildErrorCode`, the hook and logger signatures. No runtime change, and still no dependencies.

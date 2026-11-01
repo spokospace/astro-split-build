@@ -19,6 +19,7 @@ test('accepts a minimal config and fills defaults', () => {
   assert.match(o.outDir, /dist$/);
   assert.match(o.tempDir, /\.build-temp$/);
   assert.deepEqual(o.sharedDirs, []);
+  assert.deepEqual(o.ignoreDropped, []);
   assert.equal(o.verifyAssets, false);
   assert.equal(o.verifyLinks, false);
   assert.deepEqual(o.pageChecks, []);
@@ -73,6 +74,9 @@ test('validates command, env, sharedDirs, verifyAssets, verifyLinks, base, pageC
   rejects({ command: '' }, /command/);
   rejects({ env: null }, /env/);
   rejects({ sharedDirs: ['../x'] }, /sharedDirs/);
+  rejects({ ignoreDropped: 'rss.xml' }, /ignoreDropped/);
+  rejects({ ignoreDropped: ['/rss.xml'] }, /ignoreDropped/);
+  assert.deepEqual(normalizeOptions({ ...valid, ignoreDropped: ['rss.xml'] }).ignoreDropped, ['rss.xml']);
   rejects({ verifyAssets: { dir: '' } }, /verifyAssets/);
   rejects({ verifyLinks: { site: 'catalog.polo.blue' } }, /verifyLinks/);
   assert.deepEqual(normalizeOptions({ ...valid, verifyLinks: { site: 'https://x.dev' } }).verifyLinks, { site: 'https://x.dev', redirects: undefined });

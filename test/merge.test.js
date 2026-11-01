@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'fs';
 import { join } from 'path';
 import { mergeTargets } from '../src/merge.js';
 import { listTree, recordingLogger, tempProject, writeTree } from './helpers.js';
@@ -80,4 +81,74 @@ test('a copy that keeps failing is COPY_FAILED', (t) => {
     () => merge(dir, { sleep: () => {}, copy: () => { throw new Error('disk gone'); } }),
     (err) => err.code === 'COPY_FAILED' && /disk gone/.test(err.message)
   );
+});
+
+// Two builds, each with a sitemap of its own locale and a public/ copy.
+const perBuildSitemaps = {
+  'en/index.html': 'en',
+  'en/404.html': '<script src="/_spoko/a.EN.js">',
+  'en/sitemap-0.xml': '<loc>/</loc>',
+  'en/favicon.svg': '<svg/>',
+  'en/made.pdf': 'created 19:34',
+  'en/_spoko/a.EN.js': '',
+  'pl/pl/index.html': 'pl',
+  'pl/404.html': '<script src="/_spoko/a.PL.js">',
+  'pl/sitemap-0.xml': '<loc>/pl/</loc>',
+  'pl/rss.xml': '<rss/>',
+  'pl/favicon.svg': '<svg/>',
+  'pl/made.pdf': 'created 19:32',
+  'pl/_spoko/a.PL.js': '',
+  'de/de/index.html': 'de',
+  'de/favicon.svg': '<svg/>',
+};
+
+test('a dropped file that differs from the root build, or that it lacks, warns, even in quiet mode', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(join(dir, 'tmp'), perBuildSitemaps);
+  const lines = merge(dir, { quiet: true });
+  assert.deepEqual(lines.warn, [
+    "⚠️  PL build: 2 file(s) outside pl/ are dropped in the merge: rss.xml (EN has none), sitemap-0.xml (EN's copy, of another size, is kept)",
+    '   Generate such files after the merge (hooks.afterMerge), or list the ones dropped on purpose in ignoreDropped.',
+  ]);
+  // The 404 page differs in its bundle name only, the favicon not at all, the
+  // PDF in its timestamp only (same size), and
+  // the subdir and the shared dir are merged: none of them is reported.
+  assert.equal(listTree(join(dir, 'dist')).includes('rss.xml'), false);
+});
+
+test('a page the root build lacks is reported, pages it has are not', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(join(dir, 'tmp'), { 'en/index.html': 'en', 'pl/index.html': 'pl', 'pl/pl/index.html': 'pl', 'pl/about/index.html': 'about', 'de/de/index.html': 'de' });
+  const lines = merge(dir);
+  assert.match(lines.warn[0], /^⚠️  PL build: 1 file\(s\) outside pl\/ .*: about\/index\.html \(EN has none\)$/);
+});
+
+test('ignoreDropped silences a file or a whole directory', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(join(dir, 'tmp'), { ...perBuildSitemaps, 'pl/feeds/a.xml': '', 'pl/feeds/b.xml': '' });
+  const lines = merge(dir, { ignoreDropped: ['rss.xml', 'sitemap-0.xml', 'feeds/'] });
+  assert.deepEqual(lines.warn, []);
+});
+
+test('a long list of dropped files is cut short', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  const extra = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`pl/feed-${String(i).padStart(2, '0')}.xml`, '']));
+  writeTree(join(dir, 'tmp'), { 'en/index.html': 'en', 'pl/pl/index.html': 'pl', 'de/de/index.html': 'de', ...extra });
+  const lines = merge(dir);
+  assert.match(lines.warn[0], /12 file\(s\) .*feed-09\.xml \(EN has none\), and 2 more$/);
+});
+
+test('strict turns a dropped file into DROPPED_FILES, before anything is copied', (t) => {
+  const { dir, cleanup } = tempProject();
+  t.after(cleanup);
+  writeTree(join(dir, 'tmp'), perBuildSitemaps);
+  assert.throws(() => merge(dir, { strict: true }), {
+    code: 'DROPPED_FILES',
+    dropped: [{ target: 'pl', files: [{ file: 'rss.xml', reason: 'missing' }, { file: 'sitemap-0.xml', reason: 'differs' }] }],
+  });
+  assert.equal(existsSync(join(dir, 'dist')), false);
 });
