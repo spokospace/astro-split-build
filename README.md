@@ -105,6 +105,8 @@ export async function getStaticPaths() {
 
 The merge expects the layout of Astro's i18n routing with `prefixDefaultLocale: false`: the default locale at the root of `dist/`, every other locale under its own prefix (`dist/pl/`, `dist/de/`). The root target is the default locale; each other target's `subdir` is its prefix.
 
+Whatever another target's build has outside its `subdir` and `sharedDirs` does not reach `dist/`: `public/` and the pages every build renders, such as the 404 page, come from the root build. That loses something when a file is generated per build. `@astrojs/sitemap` lists only the pages of its own build, so the merged site would ship the root locale's sitemap and nothing else. The merge warns about every dropped file that the root build has no copy of the same size of, and `strict` fails on it. Sizes, not bytes: another locale's sitemap or feed is never the root's length, while a file rendered again with a timestamp in it is. Pages are reported only when the root build has no such page, since one rendered again differs in its bundle names alone. Generate a sitemap or a feed of every locale after the merge, in `hooks.afterMerge` or a step of your own, and list in `ignoreDropped` what a build emits only to have it dropped.
+
 Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astro` unless you changed it). If the site is served under a `base` (for example `/docs`), set the same `base` in the config.
 
 [`examples/astro-i18n`](examples/astro-i18n) is a complete six-page site in three locales, with a custom page check. It also builds under a base (`SITE_BASE=/docs npm run build`).
@@ -120,6 +122,7 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 | `outDir` | `dist` | Where the command builds, and where the merged result ends up. |
 | `tempDir` | `.build-temp` | Where each target's build is saved between runs. Must not overlap `outDir`. Neither may be `cwd` or one of its parents, since both are wiped. |
 | `sharedDirs` | `[]` | Content-hashed directories merged from every target. A filename collision means identical bytes, so overwriting is safe. |
+| `ignoreDropped` | `[]` | Files or directories of a non-root build (relative, e.g. `rss.xml`, `feeds/`) that the merge drops on purpose: not reported when their size differs from the root build's copy or it has none. |
 | `verifyAssets` | `false` | `{ dir }` checks every `/<dir>/<file>` reference in every `.html` file of the merged output. |
 | `verifyLinks` | `false` | `{ site, redirects? }` checks every internal `<a href>`, `<link rel=canonical>` and `<link rel=alternate hreflang>` of the merged output: each must resolve to a file in `outDir` (`/x/` → `x/index.html`, also `x.html` and direct files), hreflang alternates must link back, and one page may not give one hreflang two URLs. Internal means root- or page-relative, or absolute on `site`; anchors, queries, other origins, `mailto:`-style schemes and `verifyAssets.dir` are skipped. `redirects` (a `Map` of old path → target, or a function returning one, called after the merge) lets an `<a>` resolve through a server-side redirect when the redirect ends on a built page; a canonical or alternate must name the built page itself. |
 | `base` | `/` | The path the site is served under (Astro's `base`, e.g. `/docs`). Links and asset references carry it, `outDir` doesn't: `/docs/pl/` is `outDir/pl/index.html`. An asset reference without it is reported missing, a same-origin link outside it is skipped as another site's, and redirect and reported paths include it. Page checks get it as `basePath` (`/docs/`). |
@@ -127,7 +130,7 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 | `hooks.before(ctx)` | none | Before anything is wiped, for example to generate images the builds read. |
 | `hooks.afterTarget(target, ctx)` | none | After a target's build, before it is saved. `ctx.targetDir` is `outDir` for the root target and `outDir/<subdir>` otherwise. What you write there is part of the saved build, for example a Pagefind index. |
 | `hooks.afterMerge(ctx)` | none | After the merge and the page checks, before `tempDir` is removed. |
-| `strict` | `false` | A non-root target whose `subdir` is missing fails the run instead of warning. |
+| `strict` | `false` | A non-root target whose `subdir` is missing, or a file the merge drops (see `ignoreDropped`), fails the run instead of warning. |
 | `quiet` | `false` | One line per target, with the command's own output captured. Warnings still print. |
 | `settleMs` | `500` | Pause after each save, for filesystems that lag behind their writes. |
 | `logger` | console | `{ log, warn, error, write }`. |
@@ -177,6 +180,7 @@ Every intended failure is a `SplitBuildError` with a `code`:
 | `HOOK_FAILED` | A hook threw | `hook`, `target` |
 | `COPY_FAILED` | A save or merge copy still failed after 5 attempts | none |
 | `MISSING_TARGET_OUTPUT` | The root build is missing, or a subdir is missing with `strict` | `target` |
+| `DROPPED_FILES` | With `strict`, before anything is copied: a non-root build has a file outside its `subdir` and `sharedDirs` that the root build has no copy of the same size of | `dropped: { target, files: { file, reason: 'missing' \| 'differs' }[] }[]` |
 | `OUT_DIR_MISSING` | `scanPages` (and so `verifyAssetRefs` or `verifyInternalLinks`) found no `outDir` | `outDir` |
 | `BROKEN_ASSET_REFS` | A page references an asset that is not in the merged output | `missing: Map<ref, page>` |
 | `BROKEN_INTERNAL_LINKS` | A page links a URL that was not built, an hreflang alternate is not reciprocal, or a page gives one hreflang two URLs | `missing: Map<path, { count, pages }>`, `nonReciprocal`, `conflicting` |
