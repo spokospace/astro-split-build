@@ -18,6 +18,13 @@ A single `astro build` of every locale of a big site (catalog.polo.blue has 8,60
 
 This package does the sequencing, the merge, the retries and the reference checks. Your build tool still does the rendering.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/pipeline-dark.svg">
+  <img alt="Each locale is built in its own run, one after another. The builds are merged into one dist/ with the default locale at the root and every bundle kept, every page is checked in one pass, and only a run where every check passes deploys; a failed check keeps the previous release." src="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/pipeline-light.svg">
+</picture>
+
+The checks run after the merge because the links that break most often cross locales: a language switcher or an hreflang alternate on an English page points at the Polish build, so only the merged output can tell whether it resolves.
+
 Small sites don't need it: if one `astro build` of every locale fits in memory, keep it. The checks are useful on their own, though. `verifyAssetRefs`, `verifyInternalLinks` and `scanPages` run against any finished static build (see [Lower-level exports](#lower-level-exports)).
 
 ## Install
@@ -129,7 +136,12 @@ Targets always build one after another. There is no concurrency option, because 
 
 ## Page checks
 
-After the merge, `verifyAssets`, `verifyLinks` and every entry of `pageChecks` read the pages in **one pass**: `outDir` is listed once and each `.html` file is read once, whatever the number of checks. A big site's output is gigabytes of HTML, so a separate walk per check adds up.
+After the merge, `verifyAssets`, `verifyLinks` and every entry of `pageChecks` read the pages in **one pass**: `outDir` is listed once and each `.html` file is read once, whatever the number of checks. A big site's output is gigabytes of HTML, so a separate walk per check adds up. On catalog.polo.blue, moving its checks into one pass nearly halved their time and cut their peak memory from 2.9 GB to 118 MB:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/single-pass-dark.svg">
+  <img alt="Checks of the merged output on catalog.polo.blue, 8,600+ pages and 2.3 GB of HTML: a walk per check took 26.2 s with a 2.9 GB peak, one pass takes 13.6 s with a 118 MB peak." src="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/single-pass-light.svg">
+</picture>
 
 A check is a function of the scan's context that returns what to do with each page and what to report at the end:
 
