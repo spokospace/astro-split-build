@@ -20,7 +20,7 @@ This package does the sequencing, the merge, the retries and the reference check
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/pipeline-dark.svg">
-  <img alt="Each locale is built in its own run, one after another. The builds are merged into one dist/ with the default locale at the root and every bundle kept, every page is checked in one pass, and only a run where every check passes deploys; a failed check keeps the previous release." src="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/pipeline-light.svg">
+  <img alt="Each locale is built in its own run, one after another. The builds are merged into one dist/ with the default locale at the root and every bundle kept, the checks you enable read every page in one pass, and only a run where every check passes is deployed; on a failed check nothing is deployed and the live release stays." src="https://raw.githubusercontent.com/spokospace/astro-split-build/main/art/pipeline-light.svg">
 </picture>
 
 The checks run after the merge because the links that break most often cross locales: a language switcher or an hreflang alternate on an English page points at the Polish build, so only the merged output can tell whether it resolves.

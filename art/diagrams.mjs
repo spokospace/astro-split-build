@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const THEMES = {
   light: {
+    background: '#ffffff',
     text: '#1f2328',
     muted: '#59636e',
     line: '#8c959f',
@@ -18,6 +19,7 @@ const THEMES = {
     after: '#3245ff',
   },
   dark: {
+    background: '#0d1117',
     text: '#e6edf3',
     muted: '#9198a1',
     line: '#6e7681',
@@ -32,9 +34,12 @@ const THEMES = {
 
 const FONT = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`;
 
-const svg = (width, height, title, body) =>
+// An opaque background: GitHub's theme can differ from the system's, and
+// <picture> then serves the other palette, so neither may rely on the page.
+const svg = (theme, width, height, title, body) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" font-family="${FONT}">
 <title>${title}</title>
+<rect width="${width}" height="${height}" rx="12" fill="${theme.background}"/>
 ${body}
 </svg>
 `;
@@ -82,13 +87,13 @@ const pipeline = (t) => {
     ...[120, 380, 640].map((x) => arrow(x, 106, x, 142, t.line)),
     box(20, 146, 720, 64, t.merge, 'Merge into one dist/', 'en at the root, pl/ and de/ under it, every _astro/ bundle of every build kept'),
     arrow(380, 212, 380, 248, t.line),
-    box(20, 252, 720, 64, t.merge, 'Check every page in one pass', 'bundles, internal links, canonicals, hreflang both ways, your own page checks'),
+    box(20, 252, 720, 64, t.merge, 'The checks you enable, in one pass over the pages', 'bundles, internal links, canonicals, hreflang both ways, your own page checks'),
     arrow(195, 318, 195, 354, t.line),
     arrow(565, 318, 565, 354, t.line),
     box(20, 358, 350, 64, t.pass, 'Every check passes', 'exit 0: deploy the merged dist/'),
-    box(390, 358, 350, 64, t.keep, 'A check fails', 'exit 1: the previous release stays live'),
+    box(390, 358, 350, 64, t.keep, 'A check fails', 'exit 1: deploy nothing, keep the live release'),
   ].join('\n');
-  return svg(760, 440, 'astro-split-build: build each locale in turn, merge, check every page, then deploy or keep the previous release', body);
+  return svg(t, 760, 440, 'astro-split-build: build each locale in turn, merge, run the enabled checks in one pass, then deploy only on success', body);
 };
 
 const singlePass = (t) => {
@@ -109,7 +114,7 @@ const singlePass = (t) => {
     bar(152, 2900, 2900, t.before, 'a walk per check: 2.9 GB'),
     bar(184, 118, 2900, t.after, 'one pass: 118 MB'),
   ].join('\n');
-  return svg(760, 230, 'Checks of the merged output: 26.2 s and 2.9 GB peak memory with a walk per check, 13.6 s and 118 MB in one pass', body);
+  return svg(t, 760, 230, 'Checks of the merged output: 26.2 s and 2.9 GB peak memory with a walk per check, 13.6 s and 118 MB in one pass', body);
 };
 
 const dir = fileURLToPath(new URL('.', import.meta.url));
