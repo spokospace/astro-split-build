@@ -67,10 +67,12 @@ export function normalizeOptions(options) {
     if (!isContainedRelative(target.subdir)) {
       throw invalid(`target "${target.name}" needs a relative subdir (it is not the root target)`);
     }
-    const subdirKey = trimSlashes(normalize(target.subdir)).toLowerCase();
+    // NFC as well as lowercase: macOS takes "café" composed and decomposed
+    // for one directory name.
+    const subdirKey = trimSlashes(normalize(target.subdir)).normalize('NFC').toLowerCase();
     if (subdirs.has(subdirKey)) throw invalid(`two targets share the subdir "${target.subdir}"`);
-    // Keyed by the lowercased subdir: one inside another ("pl" and "pl/de")
-    // would make the later target's copy overwrite part of the earlier one.
+    // One subdir inside another ("pl" and "pl/de") would make the later
+    // target's copy overwrite part of the earlier one.
     for (const [otherKey, other] of subdirs) {
       if (isUnder(subdirKey, otherKey) || isUnder(otherKey, subdirKey)) {
         throw invalid(

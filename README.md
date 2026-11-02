@@ -176,19 +176,26 @@ A non-empty `problems` fails the run with `PAGE_CHECK_FAILED`; otherwise `summar
 ```js
 import { formatLinkReport, hasLinkProblems, verifyInternalLinks } from 'astro-split-build';
 
+// Shared by the config and the hook: the hook's context carries none of them.
+const base = '/docs';
+const site = 'https://example.com';
+const redirects = new Map([['/docs/old-name/', '/docs/new-name/']]);
+
 export default {
   // ...
+  base,
+  verifyLinks: { site, redirects },
   hooks: {
     async afterMerge({ outDir }) {
       await writeLocaleIndexPages(outDir); // your own step that writes HTML
-      const links = verifyInternalLinks({ outDir, site: 'https://example.com' });
+      const links = verifyInternalLinks({ outDir, base, site, redirects });
       if (hasLinkProblems(links)) throw new Error(formatLinkReport(links));
     },
   },
 };
 ```
 
-An error thrown there fails the run with `HOOK_FAILED`.
+Pass the same `base`, `site` and `redirects` as the config's own check (and `assetsDir` when `verifyAssets` is on). Without `base`, every link of a site under `/docs` is looked up one level too deep and reported missing. An error thrown in the hook fails the run with `HOOK_FAILED`.
 
 ## Failures
 

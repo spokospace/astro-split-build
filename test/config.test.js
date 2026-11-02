@@ -65,6 +65,8 @@ test('refuses an outDir or tempDir that is cwd or one of its parents', () => {
 test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'EN', subdir: 'x' }] }, /duplicate/);
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
+  // "café" composed (U+00E9) and decomposed (e + U+0301) name one directory on macOS.
+  rejects({ targets: [{ name: 'en', root: true }, { name: 'a', subdir: 'caf\u00e9' }, { name: 'b', subdir: 'cafe\u0301' }] }, /share the subdir/);
 });
 
 test('refuses a subdir inside another target\'s subdir, in either order and any case', () => {
