@@ -32,16 +32,13 @@ import { join, normalize, relative } from 'path';
 import { createInfo, defaultLogger } from './config.js';
 import { SplitBuildError } from './errors.js';
 import { cpTreeWithRetry } from './fs-safe.js';
-import { trimSlashes } from './text.js';
+import { isUnder, trimSlashes } from './text.js';
 import { toPosixPath, walkDist } from './walk.js';
 
 const label = (target) => target.name.toUpperCase();
 
 // How many dropped files a warning names before it says "and N more".
 const LISTED_DROPPED = 10;
-
-/** True when `path` is `dir` or lies inside it (forward-slash relative paths). */
-const isUnder = (path, dir) => path === dir || path.startsWith(`${dir}/`);
 
 /**
  * Files of a non-root build that the merge drops although the root build has

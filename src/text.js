@@ -25,6 +25,14 @@ export const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 export const trimSlashes = (path) => toPosixPath(path).replace(/^\/+|\/+$/g, '');
 
 /**
+ * True when `path` is `dir` or lies inside it (forward-slash relative paths).
+ * @param {string} path
+ * @param {string} dir
+ * @returns {boolean}
+ */
+export const isUnder = (path, dir) => path === dir || path.startsWith(`${dir}/`);
+
+/**
  * A base path with a leading and a trailing slash: "/docs" → "/docs/", none → "/".
  * @param {string | undefined} base
  * @returns {string}

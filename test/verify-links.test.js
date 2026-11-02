@@ -138,6 +138,29 @@ test('a link through a redirect resolves where the redirect ends', (t) => {
   assert.deepEqual([...result.missing.keys()], ['/dead/']);
 });
 
+test('a link follows at most five redirects, and a loop ends unresolved', (t) => {
+  // /five/ → /r1/ → /r2/ → /r3/ → /r4/ → /built/: five hops. /six/ adds one more.
+  const redirects = new Map([
+    ['/six/', '/five/'],
+    ['/five/', '/r1/'],
+    ['/r1/', '/r2/'],
+    ['/r2/', '/r3/'],
+    ['/r3/', '/r4/'],
+    ['/r4/', '/built/'],
+    ['/loop-a/', '/loop-b/'],
+    ['/loop-b/', '/loop-a/'],
+  ]);
+  const result = verify(
+    t,
+    {
+      'index.html': page('', '<a href="/five/">x</a><a href="/six/">x</a><a href="/loop-a/">x</a>'),
+      'built/index.html': page(''),
+    },
+    { redirects }
+  );
+  assert.deepEqual([...result.missing.keys()].sort(), ['/loop-a/', '/six/']);
+});
+
 test('a canonical or alternate through a redirect is still missing', (t) => {
   const result = verify(
     t,

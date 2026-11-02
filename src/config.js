@@ -8,7 +8,7 @@
 
 import { isAbsolute, normalize, relative, resolve } from 'path';
 import { SplitBuildError } from './errors.js';
-import { trimSlashes } from './text.js';
+import { isUnder, trimSlashes } from './text.js';
 import { toPosixPath } from './walk.js';
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -53,7 +53,7 @@ export function normalizeOptions(options) {
   }
 
   const names = new Set();
-  const subdirs = new Set();
+  const subdirs = new Map();
   for (const target of targets) {
     if (!target || typeof target.name !== 'string' || !NAME_PATTERN.test(target.name)) {
       throw invalid(`every target needs a name of letters, digits, "-" or "_" (got ${JSON.stringify(target?.name)})`);
@@ -69,7 +69,16 @@ export function normalizeOptions(options) {
     }
     const subdirKey = trimSlashes(normalize(target.subdir)).toLowerCase();
     if (subdirs.has(subdirKey)) throw invalid(`two targets share the subdir "${target.subdir}"`);
-    subdirs.add(subdirKey);
+    // Keyed by the lowercased subdir: one inside another ("pl" and "pl/de")
+    // would make the later target's copy overwrite part of the earlier one.
+    for (const [otherKey, other] of subdirs) {
+      if (isUnder(subdirKey, otherKey) || isUnder(otherKey, subdirKey)) {
+        throw invalid(
+          `the subdirs of targets "${other.name}" ("${other.subdir}") and "${target.name}" ("${target.subdir}") overlap: one lies inside the other`
+        );
+      }
+    }
+    subdirs.set(subdirKey, target);
   }
 
   const roots = targets.filter((target) => target.root);

@@ -67,6 +67,22 @@ test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
 });
 
+test('refuses a subdir inside another target\'s subdir, in either order and any case', () => {
+  rejects(
+    { targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl-de', subdir: 'pl/de' }] },
+    /targets "pl" \("pl"\) and "pl-de" \("pl\/de"\) overlap/
+  );
+  rejects(
+    { targets: [{ name: 'en', root: true }, { name: 'pl-de', subdir: 'pl/de' }, { name: 'pl', subdir: 'pl' }] },
+    /targets "pl-de" \("pl\/de"\) and "pl" \("pl"\) overlap/
+  );
+  rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'PL' }, { name: 'pl-de', subdir: 'pl/de/' }] }, /overlap/);
+  // A shared prefix that is not a whole path segment is no overlap.
+  assert.doesNotThrow(() =>
+    normalizeOptions({ ...valid, targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'plx', subdir: 'plx/de' }] })
+  );
+});
+
 test('validates command, env, sharedDirs, verifyAssets, verifyLinks, base, pageChecks and hooks', () => {
   rejects({ pageChecks: {} }, /pageChecks/);
   rejects({ pageChecks: [{ name: '', check: () => ({}) }] }, /pageChecks/);

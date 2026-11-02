@@ -115,7 +115,7 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `targets` | required | `{ name, root?, subdir? }[]`. Exactly one target has `root: true`; every other target needs a relative `subdir`. Names are letters, digits, `-` and `_`. |
+| `targets` | required | `{ name, root?, subdir? }[]`. Exactly one target has `root: true`; every other target needs a relative `subdir`. Names are letters, digits, `-` and `_`. No two subdirs may be the same or lie one inside the other (`pl` and `pl/de`), compared case-insensitively. |
 | `command` | required | Run once per target through the shell, in `cwd`. It must write a fresh build to `outDir`, as `astro build` does. |
 | `env` | `{}` | An object, or a function of the target, merged over `process.env` for that target's command. |
 | `cwd` | `process.cwd()` | Base for `outDir`, `tempDir` and the command. |
@@ -124,12 +124,12 @@ Set `sharedDirs` and `verifyAssets.dir` to your `build.assets` directory (`_astr
 | `sharedDirs` | `[]` | Content-hashed directories merged from every target. A filename collision means identical bytes, so overwriting is safe. |
 | `ignoreDropped` | `[]` | Files or directories of a non-root build (relative, e.g. `rss.xml`, `feeds/`) that the merge drops on purpose: not reported when their size differs from the root build's copy or it has none. |
 | `verifyAssets` | `false` | `{ dir }` checks every `/<dir>/<file>` reference in every `.html` file of the merged output. |
-| `verifyLinks` | `false` | `{ site, redirects? }` checks every internal `<a href>`, `<link rel=canonical>` and `<link rel=alternate hreflang>` of the merged output: each must resolve to a file in `outDir` (`/x/` → `x/index.html`, also `x.html` and direct files), hreflang alternates must link back, and one page may not give one hreflang two URLs. Internal means root- or page-relative, or absolute on `site`; anchors, queries, other origins, `mailto:`-style schemes and `verifyAssets.dir` are skipped. `redirects` (a `Map` of old path → target, or a function returning one, called after the merge) lets an `<a>` resolve through a server-side redirect when the redirect ends on a built page; a canonical or alternate must name the built page itself. |
+| `verifyLinks` | `false` | `{ site, redirects? }` checks every internal `<a href>`, `<link rel=canonical>` and `<link rel=alternate hreflang>` of the merged output: each must resolve to a file in `outDir` (`/x/` → `x/index.html`, also `x.html` and direct files), hreflang alternates must link back, and one page may not give one hreflang two URLs. Internal means root- or page-relative, or absolute on `site`; anchors, queries, other origins, `mailto:`-style schemes and `verifyAssets.dir` are skipped. `redirects` (a `Map` of old path → target, or a function returning one, called after the merge) lets an `<a>` resolve through a server-side redirect when the redirect ends on a built page or another origin, within five redirects: a longer chain or a loop is reported missing. A canonical or alternate must name the built page itself. |
 | `base` | `/` | The path the site is served under (Astro's `base`, e.g. `/docs`). Links and asset references carry it, `outDir` doesn't: `/docs/pl/` is `outDir/pl/index.html`. An asset reference without it is reported missing, a same-origin link outside it is skipped as another site's, and redirect and reported paths include it. Page checks get it as `basePath` (`/docs/`). |
 | `pageChecks` | `[]` | `{ name, check }[]`: your own checks of the merged pages, run in the same pass as `verifyAssets` and `verifyLinks`. See [Page checks](#page-checks). |
 | `hooks.before(ctx)` | none | Before anything is wiped, for example to generate images the builds read. |
 | `hooks.afterTarget(target, ctx)` | none | After a target's build, before it is saved. `ctx.targetDir` is `outDir` for the root target and `outDir/<subdir>` otherwise. What you write there is part of the saved build, for example a Pagefind index. |
-| `hooks.afterMerge(ctx)` | none | After the merge and the page checks, before `tempDir` is removed. |
+| `hooks.afterMerge(ctx)` | none | After the merge and the page checks, before `tempDir` is removed. What it writes or changes is **not** checked: see [Output of afterMerge](#output-of-aftermerge). |
 | `strict` | `false` | A non-root target whose `subdir` is missing, or a file the merge drops (see `ignoreDropped`), fails the run instead of warning. |
 | `quiet` | `false` | One line per target, with the command's own output captured. Warnings still print. |
 | `settleMs` | `500` | Pause after each save, for filesystems that lag behind their writes. |
@@ -168,6 +168,27 @@ export default {
 ```
 
 A non-empty `problems` fails the run with `PAGE_CHECK_FAILED`; otherwise `summary` is logged. `scanPages({ outDir, checks })` runs the same scan on a finished build, and `assetRefsCheck` and `internalLinksCheck` are the built-in checks in that form.
+
+### Output of afterMerge
+
+`hooks.afterMerge` runs after the page checks, so a page it writes, or a link or asset reference it adds to one, is not checked. That suits a sitemap or a feed, which the checks don't read. When the hook writes or changes HTML, check the result at the end of the hook:
+
+```js
+import { formatLinkReport, hasLinkProblems, verifyInternalLinks } from 'astro-split-build';
+
+export default {
+  // ...
+  hooks: {
+    async afterMerge({ outDir }) {
+      await writeLocaleIndexPages(outDir); // your own step that writes HTML
+      const links = verifyInternalLinks({ outDir, site: 'https://example.com' });
+      if (hasLinkProblems(links)) throw new Error(formatLinkReport(links));
+    },
+  },
+};
+```
+
+An error thrown there fails the run with `HOOK_FAILED`.
 
 ## Failures
 
