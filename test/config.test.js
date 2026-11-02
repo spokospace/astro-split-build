@@ -65,6 +65,24 @@ test('refuses an outDir or tempDir that is cwd or one of its parents', () => {
 test('refuses targets that would collide on disk', () => {
   rejects({ targets: [{ name: 'en', root: true }, { name: 'EN', subdir: 'x' }] }, /duplicate/);
   rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl2', subdir: 'pl/' }] }, /share the subdir/);
+  // "café" composed (U+00E9) and decomposed (e + U+0301) name one directory on macOS.
+  rejects({ targets: [{ name: 'en', root: true }, { name: 'a', subdir: 'caf\u00e9' }, { name: 'b', subdir: 'cafe\u0301' }] }, /share the subdir/);
+});
+
+test('refuses a subdir inside another target\'s subdir, in either order and any case', () => {
+  rejects(
+    { targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'pl-de', subdir: 'pl/de' }] },
+    /targets "pl" \("pl"\) and "pl-de" \("pl\/de"\) overlap/
+  );
+  rejects(
+    { targets: [{ name: 'en', root: true }, { name: 'pl-de', subdir: 'pl/de' }, { name: 'pl', subdir: 'pl' }] },
+    /targets "pl-de" \("pl\/de"\) and "pl" \("pl"\) overlap/
+  );
+  rejects({ targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'PL' }, { name: 'pl-de', subdir: 'pl/de/' }] }, /overlap/);
+  // A shared prefix that is not a whole path segment is no overlap.
+  assert.doesNotThrow(() =>
+    normalizeOptions({ ...valid, targets: [{ name: 'en', root: true }, { name: 'pl', subdir: 'pl' }, { name: 'plx', subdir: 'plx/de' }] })
+  );
 });
 
 test('validates command, env, sharedDirs, verifyAssets, verifyLinks, base, pageChecks and hooks', () => {

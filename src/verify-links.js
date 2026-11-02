@@ -19,6 +19,10 @@ import { detach, trimSlashes } from './text.js';
 
 const SKIPPED_SCHEMES = /^(?:mailto|tel|sms|javascript|data|blob):/i;
 
+// How many redirects a link may follow to a built page. The cap also ends a
+// redirect loop, which then counts as missing.
+const MAX_REDIRECT_HOPS = 5;
+
 // One pass over the page: markup that never renders as a link (scripts,
 // styles, templates, comments — a JSON blob in a script can still contain
 // "<a href=...>" text), or a start tag with its quoted attribute values
@@ -198,12 +202,12 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
     redirects.get(path) ?? redirects.get(path.replace(/(.)\/$/, '$1')) ?? redirects.get(`${path.replace(/\/$/, '')}/`);
 
   const viaRedirect = new Map();
-  /** Whether a link to `path` ends on a built page or another origin, through at most 5 redirects. */
+  /** Whether a link to `path` ends on a built page or another origin, through at most MAX_REDIRECT_HOPS redirects. */
   const resolvesViaRedirect = (path) => {
     if (viaRedirect.has(path)) return viaRedirect.get(path);
     let current = path;
     let resolved = false;
-    for (let hop = 0; hop < 5; hop++) {
+    for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop++) {
       const target = redirectOf(current);
       if (target === undefined) break;
       const next = toInternalPath(target, new URL(current, origin));
