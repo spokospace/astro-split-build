@@ -120,6 +120,45 @@ test('one locale with two URLs on one page is conflicting', (t) => {
   assert.deepEqual(result.conflicting, [{ page: '/wheel/', hreflang: 'en', targets: ['/wheel/', '/wheel-2/'] }]);
 });
 
+test('page-relative links resolve against the <base href>, root-relative ones against the origin', (t) => {
+  const result = verify(t, {
+    // The browser opens /docs/about/ and /docs/missing/, not /products/item/about/.
+    'products/item/index.html': page('<base href="/docs/">', '<a href="about/">x</a><a href="missing/">x</a><a href="/products/">x</a>'),
+    'products/item/about/index.html': page(''),
+    'products/index.html': page(''),
+    'docs/about/index.html': page(''),
+  });
+  assert.deepEqual([...result.missing.keys()], ['/docs/missing/']);
+});
+
+test('a same-origin absolute <base href> works like a root-relative one', (t) => {
+  const result = verify(t, {
+    'products/index.html': page(`<base href="${SITE}/docs/">`, '<a href="about/">x</a><a href="gone/">x</a>'),
+    'docs/about/index.html': page(''),
+  });
+  assert.deepEqual([...result.missing.keys()], ['/docs/gone/']);
+});
+
+test('a <base href> on another origin takes relative links off the site', (t) => {
+  const result = verify(t, {
+    // Sorted first, so a cached "/gone/" from this page would hide the miss on b/.
+    'a/index.html': page('<base href="https://cdn.example.net/">', `<a href="gone/">x</a><a href="/gone/">x</a><a href="${SITE}/gone-too/">x</a>`),
+    'b/index.html': page('', '<a href="/gone/">x</a>'),
+  });
+  assert.deepEqual([...result.missing.keys()].sort(), ['/gone-too/', '/gone/']);
+  assert.deepEqual(result.missing.get('/gone/').pages, ['/b/']);
+});
+
+test('only the first <base> with an href counts, and one that is no URL falls back to the page', (t) => {
+  const result = verify(t, {
+    'first/index.html': page('<base target="_blank"><base href="/docs/"><base href="/other/">', '<a href="about/">x</a>'),
+    'broken/index.html': page('<base href="http://[">', '<a href="about/">x</a>'),
+    'docs/about/index.html': page(''),
+    'broken/about/index.html': page(''),
+  });
+  assert.equal(result.missing.size, 0);
+});
+
 test('a link through a redirect resolves where the redirect ends', (t) => {
   const redirects = new Map([
     ['/docs/OLD_NAME/', '/docs/new-name/'],

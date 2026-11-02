@@ -10,12 +10,21 @@ permissions:
 
 jobs:
   test:
-    name: Tests (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    name: Tests (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # Windows copies with fs.cpSync instead of `cp` (src/fs-safe.js), so
+        # it is a code path of its own. macOS takes the `cp` path, as Linux does.
+        os: [ubuntu-latest, windows-latest]
         node: [20, 22, 24]
+        exclude:
+          # `node --test test/*.test.js` needs Node 22+ on Windows: Node 20's
+          # test runner takes no globs, and Windows shells don't expand them.
+          # Ubuntu covers Node 20, and Windows 22 and 24 cover fs.cpSync.
+          - os: windows-latest
+            node: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

@@ -10,9 +10,9 @@
 // overwrote its own entries. This is the check underneath all of them.
 //
 // Internal means: a root-relative or page-relative href, or an absolute URL on
-// `site`. Anchors, mailto:/tel:/javascript:, other origins and the assets
-// directory (that one is `verifyAssetRefs`) are skipped; the query and the
-// fragment are ignored.
+// `site`, resolved against the page's <base href> when it has one. Anchors,
+// mailto:/tel:/javascript:, other origins and the assets directory (that one
+// is `verifyAssetRefs`) are skipped; the query and the fragment are ignored.
 
 import { scanPages } from './scan-pages.js';
 import { detach, trimSlashes } from './text.js';
@@ -30,7 +30,7 @@ const MAX_REDIRECT_HOPS = 5;
 // (data-tooltip="<a href=&quot;https://…&quot;>"), and matching only <a ...>
 // would read that as a link of the page.
 const MARKUP = /<(script|style|template)\b[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|<([a-z][\w:-]*)((?:"[^"]*"|'[^']*'|[^'">])*)>/gi;
-const LINK_TAGS = new Set(['a', 'link']);
+const LINK_TAGS = new Set(['a', 'link', 'base']);
 const ATTR = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
 
 const ENTITIES = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' };
@@ -77,19 +77,26 @@ export const pageUrlPath = (file, basePath = '/') => `${basePath}${file}`.replac
  */
 
 /**
- * The links of one page: every `<a href>`, the canonical, and the hreflang
- * alternates (with their lowercased `hreflang`). Exported for tests.
+ * The links of one page and the href of its `<base>`: the first one with an
+ * href sets the document's base URL, as in a browser, and later ones don't
+ * count. `baseHref` is null without one.
  * @param {string} html
- * @returns {PageLink[]}
+ * @returns {{ links: PageLink[], baseHref: string | null }}
  */
-export function extractLinks(html) {
+const readLinks = (html) => {
   /** @type {PageLink[]} */
   const links = [];
+  /** @type {string | null} */
+  let baseHref = null;
   for (const [, , rawTag, source] of html.matchAll(MARKUP)) {
     if (!rawTag) continue;
     const tag = rawTag.toLowerCase();
     if (!LINK_TAGS.has(tag)) continue;
     const attrs = parseAttrs(source);
+    if (tag === 'base') {
+      if (baseHref === null && attrs.href !== undefined) baseHref = decodeEntities(attrs.href);
+      continue;
+    }
     if (!attrs.href) continue;
     const href = decodeEntities(attrs.href);
     if (tag === 'a') {
@@ -103,7 +110,17 @@ export function extractLinks(html) {
       links.push({ href, kind: 'hreflang', hreflang: decodeEntities(attrs.hreflang).toLowerCase() });
     }
   }
-  return links;
+  return { links, baseHref };
+};
+
+/**
+ * The links of one page: every `<a href>`, the canonical, and the hreflang
+ * alternates (with their lowercased `hreflang`). Exported for tests.
+ * @param {string} html
+ * @returns {PageLink[]}
+ */
+export function extractLinks(html) {
+  return readLinks(html).links;
 }
 
 /**
@@ -147,13 +164,13 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
     return null;
   };
 
-  /** The internal URL path of `href` as seen from `pageUrl`, or null for links this check skips. */
-  const toInternalPath = (href, pageUrl) => {
+  /** The internal URL path of `href` resolved against `baseUrl`, or null for links this check skips. */
+  const toInternalPath = (href, baseUrl) => {
     const trimmed = href.trim();
     if (trimmed === '' || trimmed.startsWith('#') || SKIPPED_SCHEMES.test(trimmed)) return null;
     let url;
     try {
-      url = new URL(trimmed, pageUrl);
+      url = new URL(trimmed, baseUrl);
     } catch {
       return null;
     }
@@ -170,12 +187,14 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
   };
 
   // Navigation, footer and product links repeat on every page: parse each
-  // href that doesn't depend on the page (root-relative or absolute) once.
+  // href that doesn't depend on the page once. An absolute one never does; a
+  // root-relative one doesn't while the base URL is on the site's origin, and
+  // a <base> elsewhere takes it off the site.
   const pathCache = new Map();
-  const internalPathOf = (href, pageUrl) => {
-    const pageIndependent = href.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(href);
-    if (!pageIndependent) return toInternalPath(href, pageUrl);
-    if (!pathCache.has(href)) pathCache.set(detach(href), toInternalPath(href, pageUrl));
+  const internalPathOf = (href, baseUrl, baseOnSite) => {
+    const pageIndependent = (baseOnSite && href.startsWith('/')) || /^[a-z][a-z0-9+.-]*:/i.test(href);
+    if (!pageIndependent) return toInternalPath(href, baseUrl);
+    if (!pathCache.has(href)) pathCache.set(detach(href), toInternalPath(href, baseUrl));
     return pathCache.get(href);
   };
 
@@ -212,11 +231,16 @@ export const internalLinksCheck = ({ site, assetsDir, redirects = new Map() }) =
 
   const page = (file, html) => {
     const pagePath = pageUrlPath(file, basePath);
+    const { links, baseHref } = readLinks(html);
     const pageUrl = new URL(pagePath, origin);
+    // A <base href> that is no URL leaves the page as the base, as in a browser.
+    const baseUrl = baseHref !== null && URL.canParse(baseHref, pageUrl) ? new URL(baseHref, pageUrl) : pageUrl;
+    // Read once per page: URL#origin builds a new string on every read.
+    const baseOnSite = baseHref === null || baseUrl.origin === origin;
     const cluster = new Map();
 
-    for (const { href, kind, hreflang } of extractLinks(html)) {
-      const path = internalPathOf(href, pageUrl);
+    for (const { href, kind, hreflang } of links) {
+      const path = internalPathOf(href, baseUrl, baseOnSite);
       if (path === null) continue;
       linkCount++;
 

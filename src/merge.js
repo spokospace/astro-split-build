@@ -23,9 +23,10 @@
 // it, with nothing failing. Those files are reported (`findDroppedFiles`).
 //
 // They are compared by size, not by bytes: another locale's sitemap or feed is
-// never the root's length, while a file rendered again with a timestamp in it
-// (a generated PDF) is, and holds nothing the merge loses. Reading every
+// almost never the root's length, while a file rendered again with a timestamp
+// in it (a generated PDF) is, and holds nothing the merge loses. Reading every
 // public/ copy twice per build to tell them apart would cost hundreds of MB.
+// The rare same-length miss is the price (#8).
 
 import { existsSync, statSync } from 'fs';
 import { join, normalize, relative } from 'path';
